@@ -130,6 +130,8 @@ function forwardRet(sym, i, h, side) {
 /* ------------------------------------------------------------- 리플레이 */
 
 const signals = [];
+const atrSignals = [];      // ATR만으로 고른 보드의 |4h 변동|
+const scoreSignals = [];    // 스코어로 고른 보드의 |4h 변동|
 // 베이스라인: 각 평가 시각·호라이즌마다 유니버스 전 종목의 롱 기준 수익률 분포
 const baseline = {};       // key: `${t}|${hk}` -> { rets: [] }
 let evaluated = 0;
@@ -192,9 +194,26 @@ for (const t of evalTimes) {
     .slice(0, CFG.TOP_N);
 
   for (const f of board) {
-    const rec = { t, symbol: f.symbol, side: f.side, mark: f.mark, score: f.score, ret: {} };
+    const rec = { t, symbol: f.symbol, side: f.side, mark: f.mark, score: f.score,
+                  atr: f.atr_pct, ret: {} };
     for (const [hk, h] of HORIZONS) rec.ret[hk] = forwardRet(f.symbol, f._i, h, f.side);
     signals.push(rec);
+  }
+
+  // 대조군: 스코어 대신 ATR만으로 고른 같은 크기의 보드.
+  // 스코어의 변동폭 예측력이 사실은 전부 ATR에서 온 것이라면 두 보드는 구분되지 않는다.
+  // 그렇다면 이 제품은 '변동성 큰 종목이 많이 움직인다'는 동어반복을 파는 셈이라,
+  // 팔기 전에 확인해야 하는 비교다.
+  const atrBoard = eligible.slice()
+    .sort((a, b) => (b.atr_pct || 0) - (a.atr_pct || 0))
+    .slice(0, CFG.TOP_N);
+  for (const f of atrBoard) {
+    const r = forwardRet(f.symbol, f._i, 48, 'LONG');
+    if (r != null) atrSignals.push(Math.abs(r));
+  }
+  for (const f of board) {
+    const r = forwardRet(f.symbol, f._i, 48, 'LONG');
+    if (r != null) scoreSignals.push(Math.abs(r));
   }
 
   if (evaluated % 50 === 0) console.error(`  ${evaluated}/${evalTimes.length} 평가…`);
@@ -364,6 +383,20 @@ for (const m of ['◎', '○', '△', '※']) {
   }
 }
 console.log('');
+
+// 스코어 보드 vs ATR 보드 — 스코어가 ATR 이상을 더하는가
+{
+  const m1 = scoreSignals.reduce((a, b) => a + b, 0) / scoreSignals.length;
+  const m0 = atrSignals.reduce((a, b) => a + b, 0) / atrSignals.length;
+  const v1 = scoreSignals.reduce((a, b) => a + (b - m1) ** 2, 0) / (scoreSignals.length - 1);
+  const nEff = scoreSignals.length / (48 / STEP);
+  const tv = (m1 - m0) / Math.sqrt(v1 / nEff);
+  track.vs_atr = { score_board: m1, atr_board: m0, ratio: m1 / m0, t: tv, n_eff: Math.round(nEff),
+                   score_adds: Math.abs(tv) >= 2 && m1 > m0 };
+  console.log('── 스코어 보드 vs ATR 단순정렬 보드 (|4h 변동|)');
+  console.log(`   스코어 ${m1.toFixed(2)}%  ·  ATR정렬 ${m0.toFixed(2)}%  = ${(m1 / m0).toFixed(2)}배  t=${tv.toFixed(1)}`);
+  console.log(`   ${track.vs_atr.score_adds ? '✓ 스코어가 ATR 이상을 더한다' : '✗ 스코어가 ATR 대비 우위 없음 — 변동폭 예측은 사실상 ATR이 한다'}\n`);
+}
 
 track.robust = {};
 console.log('── 견고성 (4h 기준)');

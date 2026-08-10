@@ -186,7 +186,7 @@ body {
 /* 행 그리드 — 헤더와 행이 같은 템플릿을 공유한다 */
 .col-head, .row {
   display: grid;
-  grid-template-columns: 42px minmax(120px, 1.25fr) 110px 82px 92px minmax(200px, 2fr);
+  grid-template-columns: 40px minmax(110px, 1.1fr) 104px 96px 76px 88px minmax(190px, 1.9fr);
   align-items: center;
   gap: 10px;
 }
@@ -197,7 +197,7 @@ body {
   color: var(--fg-mute);
   border-bottom: 1px solid var(--line);
 }
-.col-head .c-price, .col-head .c-chg, .col-head .c-fund { text-align: right; }
+.col-head .c-price, .col-head .c-move, .col-head .c-chg, .col-head .c-fund { text-align: right; }
 
 .rows { display: flex; flex-direction: column; }
 
@@ -217,8 +217,8 @@ body {
   width: 3px; border-radius: 0 3px 3px 0;
   background: var(--fg-mute);
 }
-.row[data-side="LONG"]::before { background: var(--long); box-shadow: 0 0 10px rgba(34, 211, 166, 0.45); }
-.row[data-side="SHORT"]::before { background: var(--short); box-shadow: 0 0 10px rgba(255, 92, 138, 0.45); }
+.row[data-side="LONG"]::before { background: rgba(34, 211, 166, 0.45); }
+.row[data-side="SHORT"]::before { background: rgba(255, 92, 138, 0.45); }
 
 .c-rank { font-family: var(--mono); font-size: 13px; color: var(--fg-mute); }
 
@@ -228,10 +228,21 @@ body {
   font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em;
   padding: 2px 6px; border-radius: 4px;
 }
-.side-pill[data-side="LONG"] { color: var(--long); background: rgba(34, 211, 166, 0.12); }
-.side-pill[data-side="SHORT"] { color: var(--short); background: rgba(255, 92, 138, 0.12); }
+.side-pill {
+  opacity: 0.55;
+  font-weight: 500;
+}
+.side-pill[data-side="LONG"] { color: var(--long); background: rgba(34, 211, 166, 0.08); }
+.side-pill[data-side="SHORT"] { color: var(--short); background: rgba(255, 92, 138, 0.08); }
+.row:hover .side-pill { opacity: 0.9; }
 
-.c-price, .c-chg, .c-fund { text-align: right; font-family: var(--mono); font-size: 13px; }
+.c-price, .c-move, .c-chg, .c-fund { text-align: right; font-family: var(--mono); font-size: 13px; }
+
+/* 예상 변동폭 — 이 화면에서 실측으로 보정된 유일한 수치라 가장 강하게 둔다 */
+.c-move { color: var(--accent); font-weight: 600; font-size: 14px; }
+.c-move.wide { text-shadow: 0 0 12px rgba(255, 194, 71, 0.35); }
+
+/* 방향은 검증되지 않았다. 추천처럼 보이지 않게 배지를 눌러둔다 */
 .c-price { color: var(--fg); }
 .c-chg.up, .c-fund.up { color: var(--up); }
 .c-chg.down, .c-fund.down { color: var(--down); }
@@ -295,7 +306,7 @@ body {
     grid-template-columns: 34px 1fr auto;
     grid-template-areas:
       "rank  name  price"
-      "score score chg";
+      "score score move";
     row-gap: 8px;
     padding: 12px 12px;
   }
@@ -303,8 +314,8 @@ body {
   .c-name { grid-area: name; }
   .c-price { grid-area: price; }
   .c-score { grid-area: score; }
-  .c-chg { grid-area: chg; align-self: start; }
-  .c-fund { display: none; }   /* 펀딩은 강점일 때 근거 태그로 노출된다 */
+  .c-move { grid-area: move; align-self: start; }
+  .c-chg, .c-fund { display: none; }   /* 좁은 화면에서는 검증된 수치만 남긴다 */
 
   .brand-sub { display: none; }
   .weight { display: none; }

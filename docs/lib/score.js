@@ -85,6 +85,9 @@
       ema20: e20,
       ema60: e60,
 
+      // 예상 4시간 변동폭(±%). 방향이 아니라 크기다 — 검증된 것이 이쪽이라 전면에 낸다.
+      exp_move: av != null ? av * Math.sqrt(CFG.MOVE_BARS) * CFG.MOVE_K : null,
+
       qv24: tick ? +tick.quoteVolume : 0,
       funding: mark && mark.fundingRate != null ? mark.fundingRate : null,
       next_funding: mark ? mark.nextFundingTime : null,

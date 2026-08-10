@@ -33,7 +33,7 @@
     bars: {},        // symbol -> kline 배열 (오래된 것 → 최신)
     oi: {},          // symbol -> { chgPct }
     feats: [],       // 스코어링 결과
-    view: 'reco',
+    view: 'move',
     lastPrice: {},   // 플래시용 직전 가격
     book: {},        // symbol -> { bid, ask, mid }  (실시간 가격의 단일 출처)
     rowEls: new Map(),
@@ -278,6 +278,12 @@
     var liquid = f.filter(function (x) { return x.qv24 >= CFG.MIN_QV_RECO; });
 
     switch (state.view) {
+      // 검증된 축으로 정렬한다. 스코어 순위는 변동폭 예측에서 단순 ATR 정렬에
+      // 오히려 밀렸으므로(리플레이 vs_atr) 기본값을 이쪽으로 둔다.
+      case 'move':
+        return liquid.filter(function (x) { return x.exp_move != null; })
+          .sort(function (a, b) { return b.exp_move - a.exp_move; })
+          .slice(0, CFG.TOP_N);
       case 'long':
         return liquid.filter(function (x) { return x.side === 'LONG'; })
           .sort(function (a, b) { return b.score_long - a.score_long; })
@@ -329,7 +335,9 @@
     });
 
     renderMarquees();
-    setMeta(state.feats.length + '종목 스코어링 · 노출 기준 24h 거래대금 $' +
+    var viewLabel = { move: '예상 변동폭 큰 순', reco: '스코어 순', long: '롱 편향',
+                      short: '숏 편향', funding: '펀딩 극단', oi: 'OI 급증' }[state.view] || '';
+    setMeta(state.feats.length + '종목 스캔 · ' + viewLabel + ' · 노출 기준 24h 거래대금 $' +
       (CFG.MIN_QV_RECO / 1e6) + 'M+');
     var path = state.klineWS === null ? '경로 판정 중'
       : (state.klineWS ? '봉 WS 수신' : '봉 REST ' + (CFG.BAR_POLL_MS / 1000) + '초 폴백');
@@ -345,6 +353,7 @@
       '<span class="c-rank"></span>' +
       '<span class="c-name"><span class="sym"></span><span class="side-pill"></span></span>' +
       '<span class="c-price"></span>' +
+      '<span class="c-move"></span>' +
       '<span class="c-chg"></span>' +
       '<span class="c-fund"></span>' +
       '<span class="c-score"><span class="mark"></span><span class="tags"></span></span>';
@@ -359,6 +368,7 @@
     var pill = el.querySelector('.side-pill');
     pill.dataset.side = f.side;
     pill.textContent = f.side;
+    pill.title = '스코어가 기운 방향입니다. 방향 예측력은 검증되지 않았습니다.';
 
     // 가격 + 방향 플래시
     var priceEl = el.querySelector('.c-price');
@@ -372,6 +382,18 @@
         priceEl.classList.add(f.price > prev ? 'f-up' : 'f-down');
       }
       state.lastPrice[f.symbol] = f.price;
+    }
+
+    // 예상 변동폭 — 실측 보정된 수치라 가장 크게 보여준다
+    var moveEl = el.querySelector('.c-move');
+    if (f.exp_move == null) {
+      moveEl.textContent = '—';
+      moveEl.className = 'c-move';
+    } else {
+      moveEl.textContent = '±' + f.exp_move.toFixed(1) + '%';
+      moveEl.className = 'c-move' + (f.exp_move >= 4 ? ' wide' : '');
+      moveEl.title = 'ATR ' + (f.atr_pct == null ? '—' : f.atr_pct.toFixed(2) + '%') +
+        ' 기반 4시간 예상 변동폭 (실측 보정 K=' + CFG.MOVE_K + ')';
     }
 
     var chgEl = el.querySelector('.c-chg');
