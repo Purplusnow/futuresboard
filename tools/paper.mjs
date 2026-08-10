@@ -220,13 +220,19 @@ const ledger = fs.existsSync(LEDGER)
       days: {} };
 
 let added = 0;
+const touched = new Set();     // 이번 실행에서 다시 계산한 날
 for (const t of times) {
   const res = tradesAt(t);
   if (!res) continue;
   const day = new Date(t).toISOString().slice(0, 10);
   // 동결일 이전은 백테스트, 이후는 전진 검증. 화면에서 절대 합치지 않는다.
   const mode = day < (ledger.freeze_date || '2026-08-11') ? 'backtest' : 'forward';
-  const d = (ledger.days[day] = ledger.days[day] || { model_sha: sha, mode: mode, strat: {} });
+  if (!touched.has(day)) {
+    // 재처리는 덮어쓴다. 기존 누계에 더하면 재시도할 때마다 그날이 두 배가 된다.
+    touched.add(day);
+    ledger.days[day] = { model_sha: sha, mode: mode, strat: {} };
+  }
+  const d = ledger.days[day];
   for (const [sid, trades] of Object.entries(res)) {
     const acc = (d.strat[sid] = d.strat[sid] || { n: 0, gross: 0, net: 0, wins: 0 });
     for (const tr of trades) {
@@ -244,12 +250,18 @@ for (const day of Object.keys(ledger.days)) {
     acc.gross = r4(acc.gross); acc.net = r4(acc.net);
   }
 }
+if (added === 0) {
+  console.error('새로 기록할 신호가 없습니다 — 원장을 건드리지 않습니다.');
+  console.error('(덤프가 아직 안 올라왔거나 대상 날짜에 데이터가 없습니다)');
+  process.exit(0);
+}
+
 ledger.updated_at = new Date(+arg('now', Date.now())).toISOString().slice(0, 19) + 'Z';
 ledger.cost = COST;
 
 fs.mkdirSync(path.dirname(LEDGER), { recursive: true });
 fs.writeFileSync(LEDGER, JSON.stringify(ledger, null, 1));
-console.error(`시각 ${added}개 기록 → ${path.relative(ROOT, LEDGER)}`);
+console.error(`시각 ${added}개 기록 (${[...touched].join(', ')}) → ${path.relative(ROOT, LEDGER)}`);
 
 /* 요약 출력 */
 const days = Object.keys(ledger.days).sort();

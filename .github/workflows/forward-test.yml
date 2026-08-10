@@ -49,6 +49,7 @@ jobs:
         run: |
           python3 tools/fetch_history.py \
             --days 4 --refresh --no-fapi \
+            --end "${{ steps.d.outputs.date }}" \
             --symbols-file docs/data/universe.txt \
             --out .cache --workers 16
 

@@ -145,6 +145,9 @@ def main() -> int:
                     help="종목 목록을 파일에서 읽는다(줄바꿈 구분). "
                          "GitHub Actions 러너는 fapi가 451이라 목록을 조회할 수 없다. "
                          "전진 검증에서는 동결된 목록을 쓰는 편이 생존 편향도 함께 없앤다.")
+    ap.add_argument("--end", default=None,
+                    help="수집 종료일 YYYY-MM-DD (기본: 어제). 호출자가 대상 날짜를 "
+                         "정했다면 반드시 넘겨야 한다 — 자정 근처에서 서로 다른 날을 볼 수 있다.")
     ap.add_argument("--refresh", action="store_true",
                     help="캐시가 있어도 다시 받는다(일일 갱신용)")
     ap.add_argument("--no-fapi", action="store_true",
@@ -155,7 +158,11 @@ def main() -> int:
     NO_FAPI = args.no_fapi
 
     # 오늘 덤프는 아직 안 올라온다. 어제까지를 끝으로 본다.
-    end = date.today() - timedelta(days=1)
+    if args.end:
+        y, m, d = (int(x) for x in args.end.split("-"))
+        end = date(y, m, d)
+    else:
+        end = date.today() - timedelta(days=1)
     days = [end - timedelta(days=i) for i in range(args.days)][::-1]
     months = sorted({f"{d.year}-{d.month:02d}" for d in days})
     print(f"기간 {days[0]} ~ {days[-1]} ({len(days)}일), 월 파일 {months}", file=sys.stderr)
