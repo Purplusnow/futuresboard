@@ -22,7 +22,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
 globalThis.window = globalThis;
-for (const f of ['docs/config.js', 'docs/lib/indicators.js', 'docs/lib/score.js']) {
+for (const f of ['docs/config.js', 'docs/lib/indicators.js', 'docs/lib/score.js', 'docs/lib/alerts.js']) {
   (0, eval)(fs.readFileSync(path.join(ROOT, f), 'utf8'));
 }
 
@@ -131,6 +131,8 @@ function forwardRet(sym, i, h, side) {
 
 const signals = [];
 const atrSignals = [];      // ATR만으로 고른 보드의 |4h 변동|
+const alertHits = {};       // ruleId -> [{ t, |1h|, |4h| }]
+const alertBase = {};       // 호라이즌 -> 평가시각별 자격풀 평균 |변동|
 const scoreSignals = [];    // 스코어로 고른 보드의 |4h 변동|
 // 베이스라인: 각 평가 시각·호라이즌마다 유니버스 전 종목의 롱 기준 수익률 분포
 const baseline = {};       // key: `${t}|${hk}` -> { rets: [] }
@@ -166,7 +168,15 @@ for (const t of evalTimes) {
       oiChgAt(u.sym, t),
       { base: u.sym.replace(/USDT$/, ''), pricePrecision: 4, onboard: 0 }
     );
-    if (f) { f._i = u.i; feats.push(f); }
+    if (f) {
+      f._i = u.i;
+      // 12봉(1시간) 전까지만 쓴 ATR — 사건 발생 이전 시점의 변동성 수준
+      var lagBars = bars.slice(0, -12);
+      var la = Ind.atrPct(lagBars.map((k) => +k[2]), lagBars.map((k) => +k[3]),
+                          lagBars.map((k) => +k[4]), 14);
+      f._exp_lag = la != null ? la * Math.sqrt(CFG.MOVE_BARS) * CFG.MOVE_K : null;
+      feats.push(f);
+    }
   }
   if (feats.length < 20) continue;
 
@@ -198,6 +208,35 @@ for (const t of evalTimes) {
                   atr: f.atr_pct, ret: {} };
     for (const [hk, h] of HORIZONS) rec.ret[hk] = forwardRet(f.symbol, f._i, h, f.side);
     signals.push(rec);
+  }
+
+  // 알림 규칙 발동 기록. 알림은 상위 14개가 아니라 자격 풀 전체에서 뜨므로
+  // 측정도 같은 범위에서 한다.
+  for (const f of eligible) {
+    const fired = Alerts.evaluate(f);
+    if (!fired.length) continue;
+    const r1 = forwardRet(f.symbol, f._i, 12, 'LONG');
+    const r4 = forwardRet(f.symbol, f._i, 48, 'LONG');
+    if (r1 == null && r4 == null) continue;
+    for (const hit of fired) {
+      for (const bucket of [hit.id, hit.id + '@L' + hit.level]) {
+      (alertHits[bucket] = alertHits[bucket] || []).push({
+        t, h1: r1 == null ? null : Math.abs(r1), h4: r4 == null ? null : Math.abs(r4),
+        exp: f.exp_move, expLag: f._exp_lag,
+      });
+      }
+    }
+  }
+  // 알림이 하나도 안 뜬 시각의 자격 풀 = 비교 기준
+  for (const [hk, h] of [['h1', 12], ['h4', 48]]) {
+    const rets = [];
+    for (const f of eligible) {
+      const r = forwardRet(f.symbol, f._i, h, 'LONG');
+      if (r != null) rets.push(Math.abs(r));
+    }
+    if (rets.length) {
+      (alertBase[hk] = alertBase[hk] || []).push(rets.reduce((a, b) => a + b, 0) / rets.length);
+    }
   }
 
   // 대조군: 스코어 대신 ATR만으로 고른 같은 크기의 보드.
@@ -396,6 +435,81 @@ console.log('');
   console.log('── 스코어 보드 vs ATR 단순정렬 보드 (|4h 변동|)');
   console.log(`   스코어 ${m1.toFixed(2)}%  ·  ATR정렬 ${m0.toFixed(2)}%  = ${(m1 / m0).toFixed(2)}배  t=${tv.toFixed(1)}`);
   console.log(`   ${track.vs_atr.score_adds ? '✓ 스코어가 ATR 이상을 더한다' : '✗ 스코어가 ATR 대비 우위 없음 — 변동폭 예측은 사실상 ATR이 한다'}\n`);
+}
+
+// 알림 규칙별 후속 변동폭 — 임계값이 근거를 갖도록 실측을 붙인다
+{
+  const baseAvg = {};
+  for (const hk of ['h1', 'h4']) {
+    const a = alertBase[hk] || [];
+    baseAvg[hk] = a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  }
+  track.alerts = {};
+  console.log('── 알림 규칙별 발동 후 변동폭');
+  console.log('   규칙              발동수    1h변동  (배수)     4h변동  (배수)     t(4h)');
+  const buckets = [];
+  for (const rule of Alerts.RULES) {
+    buckets.push({ id: rule.id, label: rule.label, desc: rule.desc, kind: rule.kind, level: 0 });
+    buckets.push({ id: rule.id + '@L2', label: rule.label + ' (강)', desc: rule.desc, kind: rule.kind, level: 2 });
+  }
+  for (const rule of buckets) {
+    const hits = alertHits[rule.id] || [];
+    if (hits.length < 30) continue;
+    const m = (k) => {
+      const v = hits.map((x) => x[k]).filter((x) => x != null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    };
+    const m1 = m('h1'), m4 = m('h4');
+    const v4 = hits.map((x) => x.h4).filter((x) => x != null);
+    const sd4 = Math.sqrt(v4.reduce((a, b) => a + (b - m4) ** 2, 0) / (v4.length - 1));
+    const nEff = v4.length / (48 / STEP);
+    const t4 = (m4 - baseAvg.h4) / (sd4 / Math.sqrt(nEff));
+    // 이 규칙이 ATR(예상 변동폭) 이상을 알려주는가.
+    // 1.0 이면 "변동성 큰 종목을 다시 지목했을 뿐"이라는 뜻이다.
+    // 사건 '직전' ATR 대비 초과 — 이쪽이 1.0을 넘어야 알림이 새 정보를 담는다
+    const lagPairs = hits.filter((x) => x.h4 != null && x.expLag > 0);
+    const liftLag = lagPairs.length
+      ? lagPairs.reduce((a, x) => a + x.h4, 0) / lagPairs.reduce((a, x) => a + x.expLag, 0) : null;
+    let liftLagT = null;
+    if (lagPairs.length > 30) {
+      const d = lagPairs.map((x) => x.h4 - x.expLag);
+      const md = d.reduce((a, b) => a + b, 0) / d.length;
+      const sd = Math.sqrt(d.reduce((a, b) => a + (b - md) ** 2, 0) / (d.length - 1));
+      liftLagT = md / (sd / Math.sqrt(d.length / (48 / STEP)));
+    }
+
+    const pairs = hits.filter((x) => x.h4 != null && x.exp > 0);
+    const lift = pairs.length
+      ? pairs.reduce((a, x) => a + x.h4, 0) / pairs.reduce((a, x) => a + x.exp, 0) : null;
+    let liftT = null;
+    if (pairs.length > 30) {
+      const d = pairs.map((x) => x.h4 - x.exp);
+      const md = d.reduce((a, b) => a + b, 0) / d.length;
+      const sd = Math.sqrt(d.reduce((a, b) => a + (b - md) ** 2, 0) / (d.length - 1));
+      liftT = md / (sd / Math.sqrt(d.length / (48 / STEP)));
+    }
+
+    track.alerts[rule.id] = {
+      lift: lift, lift_t: liftT, beats_atr: liftT != null && liftT >= 2,
+      lift_lag: liftLag, lift_lag_t: liftLagT,
+      beats_prior_atr: liftLagT != null && liftLagT >= 2,
+      label: rule.label, desc: rule.desc, kind: rule.kind, level: rule.level, n: hits.length,
+      h1: m1, h4: m4, base_h1: baseAvg.h1, base_h4: baseAvg.h4,
+      ratio_h1: m1 / baseAvg.h1, ratio_h4: m4 / baseAvg.h4,
+      t: t4, significant: Math.abs(t4) >= 2 && m4 > baseAvg.h4,
+      per_day: hits.length / 59,
+    };
+    console.log(`   ${rule.label.padEnd(16)} ${String(hits.length).padStart(6)}   ` +
+      `${m1.toFixed(2)}%  (${(m1 / baseAvg.h1).toFixed(2)}배)   ` +
+      `${m4.toFixed(2)}%  (${(m4 / baseAvg.h4).toFixed(2)}배)   t=${t4.toFixed(1)}` +
+      `   | ATR예상 대비 ${lift == null ? '—' : lift.toFixed(2) + '배'}` +
+      ` ${liftT == null ? '' : '(t=' + liftT.toFixed(1) + ')'}` +
+      ` ${liftT != null && liftT >= 2 ? '✓' : '✗'}` +
+      `  | 직전ATR 대비 ${liftLag == null ? '—' : liftLag.toFixed(2) + '배'}` +
+      ` ${liftLagT == null ? '' : '(t=' + liftLagT.toFixed(1) + ')'}` +
+      ` ${liftLagT != null && liftLagT >= 2 ? '✓새정보' : '✗'}`);
+  }
+  console.log(`   (기준: 자격 풀 평균 1h ${baseAvg.h1.toFixed(2)}% · 4h ${baseAvg.h4.toFixed(2)}%)\n`);
 }
 
 track.robust = {};

@@ -402,3 +402,87 @@ body {
 .track-verdict br { content: ""; display: block; margin-top: 8px; }
 .track-table td.move { color: var(--fg-dim); }
 .track-table td.move.hot { color: var(--accent); font-weight: 600; }
+
+/* ---------------------------------------------------------------- 알림 */
+
+.alerts { max-width: 1180px; margin: 0 auto; padding: 20px 16px 0; }
+
+.alerts-head {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.alerts-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.alerts-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.ab {
+  appearance: none; cursor: pointer;
+  border: 1px solid var(--line-2); background: transparent; color: var(--fg-dim);
+  font: inherit; font-size: 12px; padding: 5px 12px; border-radius: 999px;
+  transition: all 0.14s ease;
+}
+.ab:hover { color: var(--fg); border-color: var(--fg-mute); }
+.ab[data-on="1"] { background: var(--up); border-color: var(--up); color: #07090d; font-weight: 700; }
+.ab.icon { padding: 5px 9px; }
+.ab.icon[data-on="0"] { opacity: 0.4; filter: grayscale(1); }
+.alerts-note { font-family: var(--mono); font-size: 10.5px; color: var(--fg-mute); }
+
+/* 피드 — 가로 스크롤 카드. 세로로 쌓으면 보드를 밀어낸다. */
+.alert-feed {
+  display: flex; gap: 8px;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+}
+.alert-feed::-webkit-scrollbar { height: 6px; }
+.alert-feed::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+
+.alert-card {
+  flex: 0 0 auto;
+  min-width: 150px;
+  padding: 8px 11px;
+  border: 1px solid var(--line-2);
+  border-left: 3px solid var(--fg-mute);
+  border-radius: 7px;
+  background: var(--panel);
+}
+.alert-card[data-level="2"] { border-left-color: var(--accent); background: rgba(255, 194, 71, 0.05); }
+.ac-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ac-sym { font-weight: 700; font-size: 13px; }
+.ac-time { font-family: var(--mono); font-size: 10px; color: var(--fg-mute); }
+.ac-rule { margin-top: 3px; font-size: 11.5px; color: var(--fg-dim); }
+.ac-rule b { color: var(--accent); font-size: 10px; }
+.ac-meta { margin-top: 3px; font-family: var(--mono); font-size: 10.5px; color: var(--accent); }
+.ac-stat { color: var(--fg-mute); }
+
+.alert-empty {
+  padding: 14px 2px; font-family: var(--mono); font-size: 11.5px; color: var(--fg-mute);
+}
+
+.alert-rules { margin-top: 10px; font-size: 11.5px; color: var(--fg-mute); }
+.alert-rules summary { cursor: pointer; color: var(--fg-dim); }
+
+.rule-table {
+  width: 100%; margin-top: 10px; border-collapse: collapse;
+  font-family: var(--mono); font-size: 11px;
+}
+.rule-table th {
+  text-align: left; padding: 6px 8px; font-weight: 500; font-size: 10px;
+  color: var(--fg-mute); border-bottom: 1px solid var(--line);
+}
+.rule-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); color: var(--fg-dim); }
+.rule-table td.rt-name { color: var(--fg); white-space: nowrap; }
+.rule-table td.rt-desc { color: var(--fg-mute); font-family: inherit; font-size: 10.5px; }
+.rule-table td.rt-n { white-space: nowrap; }
+.rule-table td.rt-hot { color: var(--accent); font-weight: 600; }
+.rule-table .rt-ns { color: var(--fg-mute); opacity: 0.7; }
+
+@media (max-width: 760px) {
+  .alerts { padding: 14px 12px 0; }
+  .alerts-note { display: none; }
+  .rule-table td.rt-desc { display: none; }
+  .rule-table th:nth-child(2) { display: none; }
+}
+.rule-intro { margin: 8px 0; font-size: 11px; line-height: 1.75; color: var(--fg-mute); }
+.rule-intro b { color: var(--fg-dim); }
+.rule-table tr.rt-off td { opacity: 0.45; }
+.rule-table td.rt-verdict { white-space: nowrap; color: var(--fg-mute); }
+.rule-table td.rt-hot + td.rt-verdict { color: var(--accent); }

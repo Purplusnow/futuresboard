@@ -34,6 +34,23 @@
   <div class="marquee"><div class="marquee-track" id="track-top"></div></div>
 </section>
 
+<!-- 알림 — 계기판을 트리거로 바꾸는 부분. 탭이 열려 있는 동안만 동작한다. -->
+<section class="alerts" id="alerts">
+  <div class="alerts-head">
+    <h2>알림</h2>
+    <div class="alerts-ctl">
+      <button class="ab" id="alert-toggle" data-on="0">알림 켜기</button>
+      <button class="ab icon" id="alert-sound" data-on="1" title="소리 끄기">🔔</button>
+      <span class="alerts-note">탭이 열려 있는 동안만 동작합니다 (백그라운드 탭 포함)</span>
+    </div>
+  </div>
+  <div class="alert-feed" id="alert-feed"></div>
+  <details class="alert-rules">
+    <summary>규칙과 실측 — 어떤 알림이 실제로 값진가</summary>
+    <div id="alert-rulestats"></div>
+  </details>
+</section>
+
 <main class="board">
   <div class="board-head">
     <div class="board-title">
@@ -105,7 +122,9 @@
 <script src="lib/indicators.js"></script>
 <script src="lib/binance.js"></script>
 <script src="lib/score.js"></script>
+<script src="lib/alerts.js"></script>
 <script src="lib/track.js"></script>
 <script src="app.js"></script>
+<script src="lib/alertfeed.js"></script>
 </body>
 </html>
