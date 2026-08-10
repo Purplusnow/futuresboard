@@ -2000,7 +2000,7 @@
      "net": -23.5125,
      "wins": 6,
      "avg_gross": -1.1906,
-     "avg_net": -1.3063,
+     "avg_net": -1.3062,
      "win_rate": 0.3333
     },
     "control_random": {
@@ -3045,6 +3045,6 @@
    "mode": "backtest"
   }
  },
- "updated_at": "2026-08-10T23:24:48Z",
+ "updated_at": "2026-08-10T23:28:56Z",
  "freeze_date": "2026-08-11"
 }
