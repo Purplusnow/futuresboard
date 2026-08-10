@@ -63,6 +63,22 @@
   </div>
 </main>
 
+<!-- 자기검증 — 과거 구간을 같은 코드로 되돌려 성과를 집계한 결과 -->
+<section class="track" id="track" hidden>
+  <div class="track-head">
+    <h2>자기검증</h2>
+    <span class="track-meta" id="track-meta"></span>
+  </div>
+  <div class="track-verdict" id="track-verdict"></div>
+  <div class="track-grid" id="track-grid"></div>
+  <p class="track-live" id="track-live"></p>
+  <p class="track-note" id="track-note"></p>
+  <details class="track-caveats">
+    <summary>측정 조건과 한계 <span id="track-gen"></span></summary>
+    <ul id="track-caveats"></ul>
+  </details>
+</section>
+
 <!-- 하단 관심종목 마퀴 -->
 <section class="marquee-wrap bottom" aria-label="관심 종목">
   <div class="marquee-tag alt">WATCH</div>
@@ -85,6 +101,7 @@
 <script src="lib/indicators.js"></script>
 <script src="lib/binance.js"></script>
 <script src="lib/score.js"></script>
+<script src="lib/track.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -311,3 +311,83 @@ body {
   .board { padding-top: 14px; }
   .tabs { width: 100%; }
 }
+
+/* ------------------------------------------------------------- 자기검증 */
+
+.track {
+  max-width: 1180px;
+  margin: 32px auto 0;
+  padding: 20px 16px 0;
+}
+.track-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.track-head h2 { margin: 0; font-size: 17px; font-weight: 700; }
+.track-meta { font-family: var(--mono); font-size: 11px; color: var(--fg-mute); }
+
+.track-verdict {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--fg-dim);
+  border: 1px solid var(--line-2);
+  background: var(--panel);
+}
+.track-verdict b { color: var(--fg); }
+/* 유의성이 없을 때가 기본값이다. 없는 성과를 초록으로 칠하지 않는다. */
+.track-verdict[data-kind="none"] { border-left: 3px solid var(--fg-mute); }
+.track-verdict[data-kind="edge"] { border-left: 3px solid var(--up); }
+
+.track-table {
+  width: 100%;
+  margin-top: 14px;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.track-table th, .track-table td { padding: 7px 8px; text-align: right; white-space: nowrap; }
+.track-table thead th {
+  color: var(--fg-mute); font-weight: 500; font-size: 10.5px;
+  letter-spacing: 0.06em; border-bottom: 1px solid var(--line);
+}
+.track-table thead th.sub { font-size: 9.5px; color: var(--fg-mute); opacity: 0.75; }
+.track-table td { border-bottom: 1px solid var(--line); color: var(--fg-dim); }
+.track-table td.lbl, .track-table th:first-child { text-align: left; color: var(--fg); }
+.track-table td.n { color: var(--fg-mute); }
+.track-table td.dim { opacity: 0.62; }
+.track-table td.up { color: var(--up); }
+.track-table td.down { color: var(--down); }
+.track-table tr[data-kind="all"] td { border-top: 1px solid var(--line-2); color: var(--fg); }
+.track-table tr[data-kind="side"] td.lbl { color: var(--fg-dim); }
+
+.track-note {
+  margin: 12px 0 0;
+  font-size: 11.5px; line-height: 1.75; color: var(--fg-mute);
+}
+.track-note b { color: var(--fg-dim); }
+
+.track-caveats { margin-top: 12px; font-size: 11.5px; color: var(--fg-mute); }
+.track-caveats summary { cursor: pointer; color: var(--fg-dim); }
+.track-caveats ul { margin: 8px 0 0; padding-left: 18px; line-height: 1.8; }
+
+@media (max-width: 760px) {
+  .track { padding: 0 12px; }
+  .track-table { font-size: 10.5px; }
+  .track-table th, .track-table td { padding: 6px 4px; }
+}
+.track-live {
+  margin: 12px 0 0;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.7;
+  color: var(--fg-mute);
+  padding: 8px 10px; border-radius: 6px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.track-live b { color: var(--fg-dim); }
+.track-live b.up { color: var(--up); }
+.track-live b.down { color: var(--down); }
+.track-live .dimmed { opacity: 0.72; }
+.track-verdict[data-kind="partial"] { border-left: 3px solid var(--accent); }
+.track-verdict b.ok { color: var(--accent); }
+.track-verdict b.no { color: var(--fg-dim); }
+.track-verdict br { content: ""; display: block; margin-top: 8px; }
+.track-table td.move { color: var(--fg-dim); }
+.track-table td.move.hot { color: var(--accent); font-weight: 600; }
