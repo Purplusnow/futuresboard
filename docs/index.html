@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FUTURES BOARD — 바이낸스 선물 실시간 스크리너</title>
+<meta name="description" content="바이낸스 USDT 무기한 선물을 실시간으로 스크리닝해 롱·숏 후보를 전광판으로 표시합니다.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">⚡</span>
+    <span class="brand-name">FUTURES<em>BOARD</em></span>
+    <span class="brand-sub">BINANCE USDT-M · LIVE</span>
+  </div>
+  <div class="status">
+    <span class="weight" id="weight" title="바이낸스 REST 사용 weight (IP당 2400/분)">W —</span>
+    <span class="conn" id="conn" data-state="connecting">
+      <i class="dot"></i><span id="conn-label">연결 중</span>
+    </span>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- 상단 실시간 시세 마퀴 -->
+<section class="marquee-wrap" aria-label="실시간 시세">
+  <div class="marquee-tag">LIVE</div>
+  <div class="marquee"><div class="marquee-track" id="track-top"></div></div>
+</section>
+
+<main class="board">
+  <div class="board-head">
+    <div class="board-title">
+      <h1>추천 종목</h1>
+      <span class="board-meta" id="board-meta">부팅 중…</span>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button class="tab is-on" data-view="reco" role="tab">추천 TOP</button>
+      <button class="tab" data-view="long" role="tab">롱</button>
+      <button class="tab" data-view="short" role="tab">숏</button>
+      <button class="tab" data-view="funding" role="tab">펀딩 극단</button>
+      <button class="tab" data-view="oi" role="tab">OI 급증</button>
+    </nav>
+  </div>
+
+  <div class="col-head">
+    <span class="c-rank">#</span>
+    <span class="c-name">종목</span>
+    <span class="c-price">현재가</span>
+    <span class="c-chg">24H</span>
+    <span class="c-fund">펀딩</span>
+    <span class="c-score">확신도 / 근거</span>
+  </div>
+
+  <div class="rows" id="rows">
+    <div class="skeleton" id="skeleton">종목 목록을 불러오는 중…</div>
+  </div>
+</main>
+
+<!-- 하단 관심종목 마퀴 -->
+<section class="marquee-wrap bottom" aria-label="관심 종목">
+  <div class="marquee-tag alt">WATCH</div>
+  <div class="marquee"><div class="marquee-track" id="track-bottom"></div></div>
+</section>
+
+<footer class="foot">
+  <p class="legend">
+    <b>◎</b> 확신 높음 · <b>○</b> 양호 · <b>△</b> 보통 · <b>※</b> 방향 불분명(관망)
+  </p>
+  <p class="disclaimer">
+    본 페이지는 공개 시세 데이터를 브라우저에서 기계적으로 가공한 <strong>정보 제공</strong> 화면입니다.
+    투자 자문·권유가 아니며 매매 판단과 그 결과의 책임은 이용자 본인에게 있습니다.
+    <strong>선물 거래는 레버리지로 인해 원금 전액을 잃을 수 있습니다.</strong>
+  </p>
+  <p class="src">시세 · 바이낸스 공개 API / WebSocket &nbsp;·&nbsp; <span id="foot-scan">—</span></p>
+</footer>
+
+<script src="config.js"></script>
+<script src="lib/indicators.js"></script>
+<script src="lib/binance.js"></script>
+<script src="lib/score.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
