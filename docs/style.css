@@ -428,6 +428,9 @@ body {
 /* 피드 — 가로 스크롤 카드. 세로로 쌓으면 보드를 밀어낸다. */
 .alert-feed {
   display: flex; gap: 8px;
+  /* 빈 상태(한 줄) → 카드(세 줄) 전환에서 아래 내용이 한 번 밀리는 것을 막는다 */
+  min-height: 74px;
+  align-items: flex-start;
   overflow-x: auto; overflow-y: hidden;
   padding-bottom: 6px;
   scrollbar-width: thin;
@@ -504,3 +507,7 @@ body {
 
 /* 마지막 방어선 — 예기치 못한 요소가 삐져나와도 본문은 가로로 밀리지 않게 */
 html, body { overflow-x: hidden; }
+
+/* 목록은 내용이 계속 바뀐다. 브라우저가 이 안의 요소를 스크롤 앵커로 잡으면
+ * 행이 들고 날 때마다 화면이 튄다. 앵커링 대상에서 제외한다. */
+.rows, .alert-feed, .marquee-track { overflow-anchor: none; }

@@ -40,6 +40,8 @@
     booted: false,
     klineWS: null,   // null=판정 전, true=WS로 봉이 옴, false=REST 폴백
     rx: { book: 0, kline: 0 },
+    order: { view: null, syms: [], ts: 0 },   // 화면에 고정된 표시 순서
+    marqueeTs: 0,
   };
 
   // 콘솔/자동화에서 내부 상태를 들여다볼 수 있게 열어둔다.
@@ -306,8 +308,31 @@
     }
   }
 
-  function render() {
+  /* 표시할 종목 순서. 값은 계속 갱신하되 순서는 REORDER_MS 주기로만 바꾼다.
+   * 사용자가 읽는 중에 행이 튀어 오르내리는 것을 막는 것이 목적이다. */
+  function displayList() {
+    var now = Date.now();
+    var byId = {};
+    state.feats.forEach(function (f) { byId[f.symbol] = f; });
+
+    var keep = state.order.view === state.view &&
+      now - state.order.ts < CFG.REORDER_MS &&
+      state.order.syms.length &&
+      state.order.syms.every(function (s) { return byId[s]; });
+
+    if (keep) {
+      return state.order.syms.map(function (s) { return byId[s]; });
+    }
     var list = currentList();
+    state.order = {
+      view: state.view, ts: now,
+      syms: list.map(function (f) { return f.symbol; }),
+    };
+    return list;
+  }
+
+  function render() {
+    var list = displayList();
     var rows = $('rows');
     var sk = $('skeleton');
     if (sk) sk.remove();
@@ -327,7 +352,11 @@
         state.rowEls.set(f.symbol, el);
       }
       updateRow(el, f, i + 1);
-      rows.appendChild(el);          // 순서 재배치 (appendChild가 곧 이동)
+      // 이미 제자리에 있으면 DOM을 건드리지 않는다. appendChild는 항상
+      // 제거+삽입이라 매번 부르면 스크롤 앵커가 매번 깨진다.
+      if (rows.children[i] !== el) {
+        rows.insertBefore(el, rows.children[i] || null);
+      }
     });
 
     // 목록에서 빠진 행 제거
@@ -427,6 +456,11 @@
   }
 
   function renderMarquees() {
+    // 매 렌더마다 innerHTML을 갈아엎으면 CSS 애니메이션이 리셋되어
+    // 마퀴가 흐르지 않고 제자리에서 튄다.
+    if (Date.now() - state.marqueeTs < CFG.MARQUEE_MS) return;
+    state.marqueeTs = Date.now();
+
     // 상단: 거래대금 상위 24종목 실시간 시세
     var top = state.feats.slice(0, 24);
     $('track-top').innerHTML = marqueeHTML(top) + marqueeHTML(top);
@@ -500,6 +534,7 @@
       t.classList.toggle('is-on', t === b);
     });
     state.view = b.dataset.view;
+    state.order = { view: null, syms: [], ts: 0 };   // 탭 전환은 즉시 재정렬
     state.rowEls.forEach(function (el) { el.remove(); });
     state.rowEls.clear();
     if (state.booted) render();
