@@ -511,3 +511,36 @@ html, body { overflow-x: hidden; }
 /* 목록은 내용이 계속 바뀐다. 브라우저가 이 안의 요소를 스크롤 앵커로 잡으면
  * 행이 들고 날 때마다 화면이 튄다. 앵커링 대상에서 제외한다. */
 .rows, .alert-feed, .marquee-track { overflow-anchor: none; }
+
+/* ------------------------------------------------------------- 매매 원장 */
+
+.ledger { max-width: 1180px; margin: 32px auto 0; padding: 20px 16px 0; }
+.track-verdict[data-kind="loss"] { border-left: 3px solid var(--down); }
+.track-verdict[data-kind="loss"] b { color: var(--down); }
+.track-verdict[data-kind="ok"] { border-left: 3px solid var(--up); }
+
+.lg-block { margin-top: 18px; }
+.lg-block h3 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--fg); }
+.lg-note, .lg-empty { margin: 0 0 8px; font-size: 11px; line-height: 1.7; color: var(--fg-mute); }
+.lg-empty { padding: 10px; border: 1px dashed var(--line-2); border-radius: 6px; }
+
+.lg-table {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--mono); font-size: 11.5px;
+  min-width: 520px;
+}
+.lg-block { overflow-x: auto; }
+.lg-table th {
+  text-align: right; padding: 6px 8px; font-weight: 500; font-size: 10px;
+  color: var(--fg-mute); border-bottom: 1px solid var(--line);
+}
+.lg-table th:first-child { text-align: left; }
+.lg-table td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--fg-dim); }
+.lg-table td.lg-name { text-align: left; color: var(--fg); white-space: nowrap; }
+.lg-table td.lg-n { color: var(--fg-mute); }
+.lg-table td.lg-strong { font-weight: 700; font-size: 12.5px; }
+.lg-table td.up { color: var(--up); }
+.lg-table td.down { color: var(--down); }
+.lg-table td.dim { opacity: 0.6; }
+
+@media (max-width: 760px) { .ledger { padding: 0 12px; } }

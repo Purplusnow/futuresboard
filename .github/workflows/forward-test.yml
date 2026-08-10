@@ -1,0 +1,68 @@
+# 전진 검증 — 동결된 모델을 어제 데이터에 돌려 원장에 누적한다.
+#
+# 왜 이렇게 도는가:
+#   Actions 러너는 미국 IP라 fapi가 451이다(실측). 반면 data.binance.vision 덤프는
+#   200이다. 그래서 신호 생성도 평가도 전부 덤프로 하고, 종목 목록은 리포에 동결해 둔다
+#   (docs/data/universe.txt). 목록을 고정하면 생존 편향도 함께 사라진다.
+#
+#   덤프는 T+1에 올라오므로 항상 '어제'를 처리한다. 모델은 데이터보다 먼저 커밋돼 있으므로
+#   과최적화가 원천적으로 불가능하다 — 이것이 리플레이와 다른 점이다.
+name: forward test
+
+on:
+  schedule:
+    - cron: '30 3 * * *'      # 매일 03:30 UTC (KST 12:30) — 전날 덤프가 올라온 뒤
+  workflow_dispatch:
+    inputs:
+      date:
+        description: '처리할 날짜 (YYYY-MM-DD, 비우면 어제)'
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forward-test
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 대상 날짜 결정
+        id: d
+        run: |
+          D="${{ github.event.inputs.date }}"
+          [ -z "$D" ] && D=$(date -u -d 'yesterday' +%Y-%m-%d)
+          echo "date=$D" >> $GITHUB_OUTPUT
+          echo "처리 대상: $D"
+
+      # 워밍업에 지표 200봉 + 24h 통계 288봉이 필요하다 → 신호일 이전 약 1.7일.
+      # 넉넉히 4일을 받는다.
+      - name: 덤프 수집 (fapi 미사용)
+        run: |
+          python3 tools/fetch_history.py \
+            --days 4 --refresh --no-fapi \
+            --symbols-file docs/data/universe.txt \
+            --out .cache --workers 16
+
+      - name: 원장 갱신
+        run: node tools/paper.mjs --from "${{ steps.d.outputs.date }}" --to "${{ steps.d.outputs.date }}"
+
+      - name: 커밋
+        run: |
+          if git diff --quiet docs/data/ledger.json; then
+            echo "변경 없음 (덤프 미도착이거나 이미 처리됨)"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/data/ledger.json
+          git commit -m "전진 검증: ${{ steps.d.outputs.date }} 원장 갱신"
+          git push

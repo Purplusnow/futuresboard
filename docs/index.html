@@ -98,6 +98,17 @@
   </details>
 </section>
 
+<!-- 매매 원장 — 추천대로 매매했을 때의 비용 반영 손익 -->
+<section class="ledger" id="ledger" hidden>
+  <div class="track-head">
+    <h2>매매 검증</h2>
+    <span class="track-meta" id="ledger-meta"></span>
+  </div>
+  <div class="track-verdict" id="ledger-verdict"></div>
+  <div id="ledger-grid"></div>
+  <p class="track-note" id="ledger-cost"></p>
+</section>
+
 <!-- 하단 관심종목 마퀴 -->
 <section class="marquee-wrap bottom" aria-label="관심 종목">
   <div class="marquee-tag alt">WATCH</div>
@@ -124,6 +135,7 @@
 <script src="lib/score.js"></script>
 <script src="lib/alerts.js"></script>
 <script src="lib/track.js"></script>
+<script src="lib/ledger.js"></script>
 <script src="app.js"></script>
 <script src="lib/alertfeed.js"></script>
 </body>

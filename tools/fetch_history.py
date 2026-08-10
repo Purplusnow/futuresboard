@@ -28,6 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 VISION = "https://data.binance.vision/data/futures/um"
+NO_FAPI = False
 FAPI = "https://fapi.binance.com"
 
 
@@ -125,7 +126,7 @@ def fetch_symbol(sym: str, days: list[date], months: list[str], interval: str) -
             except Exception:
                 continue
 
-    funding = fetch_funding(sym, klines[0][0])
+    funding = [] if NO_FAPI else fetch_funding(sym, klines[0][0])
 
     klines.sort(key=lambda x: x[0])
     oi.sort(key=lambda x: x[0])
@@ -140,7 +141,18 @@ def main() -> int:
     ap.add_argument("--interval", default="5m")
     ap.add_argument("--out", default=".cache")
     ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--symbols-file", default=None,
+                    help="종목 목록을 파일에서 읽는다(줄바꿈 구분). "
+                         "GitHub Actions 러너는 fapi가 451이라 목록을 조회할 수 없다. "
+                         "전진 검증에서는 동결된 목록을 쓰는 편이 생존 편향도 함께 없앤다.")
+    ap.add_argument("--refresh", action="store_true",
+                    help="캐시가 있어도 다시 받는다(일일 갱신용)")
+    ap.add_argument("--no-fapi", action="store_true",
+                    help="fapi를 일절 호출하지 않는다(펀딩 이력 생략). 덤프 호스트만 사용.")
     args = ap.parse_args()
+
+    global NO_FAPI
+    NO_FAPI = args.no_fapi
 
     # 오늘 덤프는 아직 안 올라온다. 어제까지를 끝으로 본다.
     end = date.today() - timedelta(days=1)
@@ -148,8 +160,13 @@ def main() -> int:
     months = sorted({f"{d.year}-{d.month:02d}" for d in days})
     print(f"기간 {days[0]} ~ {days[-1]} ({len(days)}일), 월 파일 {months}", file=sys.stderr)
 
-    syms = top_symbols(args.symbols)
-    print(f"대상 {len(syms)}종목", file=sys.stderr)
+    if args.symbols_file:
+        with open(args.symbols_file) as fp:
+            syms = [ln.strip() for ln in fp if ln.strip() and not ln.startswith("#")]
+        print(f"동결 목록 {len(syms)}종목 ({args.symbols_file})", file=sys.stderr)
+    else:
+        syms = top_symbols(args.symbols)
+        print(f"대상 {len(syms)}종목", file=sys.stderr)
 
     os.makedirs(args.out, exist_ok=True)
     done = [0]
@@ -157,7 +174,7 @@ def main() -> int:
 
     def work(sym: str):
         path = os.path.join(args.out, f"{sym}.json")
-        if os.path.exists(path):                      # 이미 받은 건 건너뛴다
+        if os.path.exists(path) and not args.refresh:  # 이미 받은 건 건너뛴다
             done[0] += 1
             return sym, True
         data = fetch_symbol(sym, days, months, args.interval)
