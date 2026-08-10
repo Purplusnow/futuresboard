@@ -486,3 +486,21 @@ body {
 .rule-table tr.rt-off td { opacity: 0.45; }
 .rule-table td.rt-verdict { white-space: nowrap; color: var(--fg-mute); }
 .rule-table td.rt-hot + td.rt-verdict { color: var(--accent); }
+
+/* 넓은 표는 자기 안에서 스크롤시킨다. 페이지 본문이 가로로 밀리면
+ * 모바일에서 화면 전체가 흔들려 읽을 수 없게 된다. */
+.track-grid,
+#alert-rulestats {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.track-grid::-webkit-scrollbar,
+#alert-rulestats::-webkit-scrollbar { height: 6px; }
+.track-grid::-webkit-scrollbar-thumb,
+#alert-rulestats::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+
+.track-table { min-width: 560px; }
+.rule-table { min-width: 480px; }
+
+/* 마지막 방어선 — 예기치 못한 요소가 삐져나와도 본문은 가로로 밀리지 않게 */
+html, body { overflow-x: hidden; }

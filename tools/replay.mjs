@@ -489,7 +489,21 @@ console.log('');
       liftT = md / (sd / Math.sqrt(d.length / (48 / STEP)));
     }
 
+    // 구간을 반으로 잘라 양쪽에서 모두 성립하는지 본다. 한쪽에서만 나오면
+    // 특정 시장 국면이 만든 것이지 규칙의 힘이 아니다.
+    const mid = evalTimes[Math.floor(evalTimes.length / 2)];
+    const half = (rows) => {
+      const p2 = rows.filter((x) => x.h4 != null && x.expLag > 0);
+      if (p2.length < 20) return null;
+      const l = p2.reduce((a, x) => a + x.h4, 0) / p2.reduce((a, x) => a + x.expLag, 0);
+      return { n: p2.length, lift: l };
+    };
+    const h1st = half(hits.filter((x) => x.t < mid));
+    const h2nd = half(hits.filter((x) => x.t >= mid));
+
     track.alerts[rule.id] = {
+      split: { first: h1st, second: h2nd,
+               consistent: !!(h1st && h2nd && h1st.lift > 1.1 && h2nd.lift > 1.1) },
       lift: lift, lift_t: liftT, beats_atr: liftT != null && liftT >= 2,
       lift_lag: liftLag, lift_lag_t: liftLagT,
       beats_prior_atr: liftLagT != null && liftLagT >= 2,
@@ -507,7 +521,9 @@ console.log('');
       ` ${liftT != null && liftT >= 2 ? '✓' : '✗'}` +
       `  | 직전ATR 대비 ${liftLag == null ? '—' : liftLag.toFixed(2) + '배'}` +
       ` ${liftLagT == null ? '' : '(t=' + liftLagT.toFixed(1) + ')'}` +
-      ` ${liftLagT != null && liftLagT >= 2 ? '✓새정보' : '✗'}`);
+      ` ${liftLagT != null && liftLagT >= 2 ? '✓새정보' : '✗'}` +
+      `  | 전반 ${h1st ? h1st.lift.toFixed(2) : '—'} / 후반 ${h2nd ? h2nd.lift.toFixed(2) : '—'}` +
+      ` ${h1st && h2nd && h1st.lift > 1.1 && h2nd.lift > 1.1 ? '✓양쪽' : ''}`);
   }
   console.log(`   (기준: 자격 풀 평균 1h ${baseAvg.h1.toFixed(2)}% · 4h ${baseAvg.h4.toFixed(2)}%)\n`);
 }
