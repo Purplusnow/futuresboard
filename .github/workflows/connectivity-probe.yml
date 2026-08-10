@@ -1,0 +1,31 @@
+# 일회성 진단: Actions 러너에서 바이낸스 계열 호스트에 닿는지 확인한다.
+# 전진 검증을 서버 없이 굴릴 수 있는지가 여기서 갈린다.
+name: connectivity probe
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 러너 위치
+        run: curl -s https://ipinfo.io/json | head -c 300; echo
+      - name: fapi REST (지역 차단 여부)
+        run: |
+          for u in \
+            "https://fapi.binance.com/fapi/v1/ping" \
+            "https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BTCUSDT" \
+            "https://fapi.binance.com/futures/data/openInterestHist?symbol=BTCUSDT&period=5m&limit=3"; do
+            code=$(curl -s -o /tmp/o -w "%{http_code}" "$u")
+            echo "  $code  $u"
+            [ "$code" != "200" ] && head -c 200 /tmp/o && echo
+          done
+        continue-on-error: true
+      - name: data.binance.vision 덤프
+        run: |
+          for u in \
+            "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/5m/BTCUSDT-5m-2026-08-08.zip" \
+            "https://data.binance.vision/data/futures/um/daily/metrics/BTCUSDT/BTCUSDT-metrics-2026-08-08.zip"; do
+            echo "  $(curl -s -o /dev/null -w '%{http_code} %{size_download}B' "$u")  $u"
+          done
+        continue-on-error: true
