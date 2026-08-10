@@ -12,7 +12,9 @@ GitHub Pages 정적 호스팅으로 배포한다.
 그 종목의 평소 변동성보다 1.7~2.3배 크게 움직인다(t=2.4~3.4). 이 프로젝트에서
 기준선을 이긴 유일한 부분이다.
 
-최종 업데이트: 2026-08-10
+**배포: https://purplusnow.github.io/futuresboard/**
+
+최종 업데이트: 2026-08-11
 
 ---
 
@@ -190,7 +192,10 @@ cd docs && python3 -m http.server 8912
 # http://localhost:8912
 ```
 
-빌드 단계가 없다. `docs/`를 GitHub Pages 소스로 지정하면 그대로 배포된다.
+빌드 단계가 없다. `docs/`가 GitHub Pages 소스이므로 main에 push하면 그대로 반영된다.
+
+커스텀 도메인을 붙이려면 `docs/CNAME`에 호스트명을 넣고 DNS에 CNAME 레코드
+(`futures.koreanblog.xyz` → `purplusnow.github.io`)를 추가하면 된다. 지금은 기본 URL을 쓴다.
 
 ## 알려진 제약
 
