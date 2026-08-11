@@ -24,8 +24,9 @@
       desc: '최근 15분 거래대금이 직전 6시간 평균의 4배 이상',
       test: function (f) {
         if (f.vol_surge == null) return null;
-        if (f.vol_surge >= 8) return { level: 2 };
-        if (f.vol_surge >= 4) return { level: 1 };
+        var d = (f.ret_15m || 0) >= 0 ? 1 : -1;      // 급증이 상승 중이었나 하락 중이었나
+        if (f.vol_surge >= 8) return { level: 2, dir: d };
+        if (f.vol_surge >= 4) return { level: 1, dir: d };
         return null;
       },
     },
@@ -37,9 +38,9 @@
       test: function (f) {
         if (f.pos_in_range == null || f.vol_surge == null) return null;
         if (f.vol_surge < 2) return null;
-        var edge = f.pos_in_range >= 0.97 || f.pos_in_range <= 0.03;
-        if (!edge) return null;
-        return { level: f.vol_surge >= 4 ? 2 : 1 };
+        var up = f.pos_in_range >= 0.97, dn = f.pos_in_range <= 0.03;
+        if (!up && !dn) return null;
+        return { level: f.vol_surge >= 4 ? 2 : 1, dir: up ? 1 : -1 };
       },
     },
     {
@@ -49,7 +50,7 @@
       desc: '미결제약정이 1시간 새 5% 이상 늘었는데 가격은 제자리 — 에너지 축적',
       test: function (f) {
         if (f.oi_chg == null || f.ret_1h == null) return null;
-        if (f.oi_chg >= 5 && Math.abs(f.ret_1h) < 0.5) return { level: 2 };
+        if (f.oi_chg >= 5 && Math.abs(f.ret_1h) < 0.5) return { level: 2, dir: 0 };
         return null;
       },
     },
@@ -60,8 +61,9 @@
       desc: '펀딩비 절대값이 8시간 0.1% 이상 — 한쪽으로 과밀',
       test: function (f) {
         if (f.funding == null) return null;
-        if (Math.abs(f.funding) >= 0.003) return { level: 2 };
-        if (Math.abs(f.funding) >= 0.001) return { level: 1 };
+        var fd = f.funding > 0 ? 1 : -1;             // 양수 = 롱이 지불(롱 과밀)
+        if (Math.abs(f.funding) >= 0.003) return { level: 2, dir: fd };
+        if (Math.abs(f.funding) >= 0.001) return { level: 1, dir: fd };
         return null;
       },
     },
@@ -73,8 +75,9 @@
       test: function (f) {
         if (f.ret_15m == null || !f.atr_pct) return null;
         var z = Math.abs(f.ret_15m) / f.atr_pct;
-        if (z >= 4) return { level: 2 };
-        if (z >= 2.5) return { level: 1 };
+        var id2 = f.ret_15m >= 0 ? 1 : -1;
+        if (z >= 4) return { level: 2, dir: id2 };
+        if (z >= 2.5) return { level: 1, dir: id2 };
         return null;
       },
     },
@@ -88,7 +91,8 @@
     var out = [];
     for (var i = 0; i < RULES.length; i++) {
       var hit = RULES[i].test(f);
-      if (hit) out.push({ id: RULES[i].id, label: RULES[i].label, level: hit.level });
+      if (hit) out.push({ id: RULES[i].id, label: RULES[i].label,
+                         level: hit.level, dir: hit.dir == null ? 0 : hit.dir });
     }
     return out;
   }

@@ -85,7 +85,8 @@
 
         fresh.push({
           t: now, symbol: f.symbol, base: f.base, rule: hit.id, label: hit.label,
-          level: hit.level, price: f.price, precision: f.pricePrecision,
+          level: hit.level, dir: hit.dir || 0,
+          price: f.price, precision: f.pricePrecision,
           exp_move: f.exp_move, ret_1h: f.ret_1h, side: f.side, mark: f.mark,
         });
       }
@@ -153,6 +154,13 @@
 
   /* ------------------------------------------------------------------ 렌더 */
 
+  function fmtPrice(p, prec) {
+    if (p == null) return '—';
+    var d = prec != null ? Math.min(prec, 8) : 4;
+    if (p >= 1000) d = Math.min(d, 1); else if (p >= 1) d = Math.min(d, 4);
+    return p.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+
   function render() {
     var el = $('alert-feed');
     if (!el) return;
@@ -163,20 +171,51 @@
       return;
     }
 
+    var st = window.__fb;
+    var keep = el.scrollLeft;          // 주기적 재렌더에서 스크롤 위치를 잃지 않게
     var html = '';
+
     for (var i = 0; i < Math.min(feed.length, 24); i++) {
       var a = feed[i];
-      var s = statFor(a.rule);
+      var s2 = statFor(a.rule);
+
+      // 신호 시점 가격 → 현재가. 각 카드가 그 자체로 작은 검증 기록이 된다.
+      var now = st && st.book && st.book[a.symbol] ? st.book[a.symbol].mid : null;
+      var chg = (now != null && a.price > 0) ? (now / a.price - 1) * 100 : null;
+
+      // 사건의 방향(무슨 일이 있었나)은 사실이므로 그대로 쓴다.
+      var arrow = a.dir > 0 ? '↑' : (a.dir < 0 ? '↓' : '');
+      var arrowCls = a.dir > 0 ? 'up' : (a.dir < 0 ? 'down' : '');
+
       html += '<div class="alert-card" data-level="' + a.level + '">' +
         '<div class="ac-top"><span class="ac-sym">' + esc(a.base) + '</span>' +
         '<span class="ac-time">' + hhmm(a.t) + '</span></div>' +
-        '<div class="ac-rule">' + esc(a.label) + (a.level >= 2 ? ' <b>강</b>' : '') + '</div>' +
+
+        '<div class="ac-rule">' + esc(a.label) +
+          (a.level >= 2 ? ' <b>강</b>' : '') +
+          (arrow ? ' <span class="ac-arrow ' + arrowCls + '">' + arrow + '</span>' : '') +
+        '</div>' +
+
+        '<div class="ac-px">' +
+          '<span class="ac-px-at">' + fmtPrice(a.price, a.precision) + '</span>' +
+          (chg == null ? ''
+            : ' <span class="ac-px-arrow">→</span> <span class="ac-px-now">' + fmtPrice(now, a.precision) + '</span>' +
+              ' <span class="ac-px-chg ' + (chg >= 0 ? 'up' : 'down') + '">' +
+              (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%</span>') +
+        '</div>' +
+
         '<div class="ac-meta">' +
           (a.exp_move != null ? '예상 ±' + a.exp_move.toFixed(1) + '%' : '') +
-          (s && s.lift_lag ? ' <span class="ac-stat">· 평소의 ' + s.lift_lag.toFixed(1) + '배</span>' : '') +
-        '</div></div>';
+          (s2 && s2.lift_lag ? ' <span class="ac-stat">· 평소의 ' + s2.lift_lag.toFixed(1) + '배</span>' : '') +
+        '</div>' +
+
+        // 스코어가 기운 방향. 검증되지 않았으므로 '미검증'을 떼지 않는다.
+        (a.side ? '<div class="ac-bias">편향 ' + esc(a.side) +
+          ' <span class="ac-unverified">미검증</span></div>' : '') +
+        '</div>';
     }
     el.innerHTML = html;
+    el.scrollLeft = keep;
   }
 
   /* 규칙별 실측치 — 임계값이 감이 아니라 측정에서 나왔음을 보이는 자리 */
@@ -263,6 +302,8 @@
       .catch(function () {});
 
     setInterval(scan, 5000);
+    // 신호 시점 대비 현재가를 계속 갱신한다. 새 알림이 없어도 카드가 살아 있어야 한다.
+    setInterval(render, 5000);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
