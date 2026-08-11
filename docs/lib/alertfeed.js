@@ -521,7 +521,8 @@
         '<span class="tl-sub">확정 ' + done.length + '건 (' +
           Object.keys(done.reduce(function (a, x) { a[x.symbol] = 1; return a; }, {})).length +
           '종목) · 확신 부족 제외 ' + skipped + '건 · ' + anchorTxt +
-          ' 기준 24시간 · 진입 다음 봉, 청산 4시간 뒤 · 왕복비용 ' + cost + '% 반영</span>' +
+          ' 기준 24시간 · 진입 다음 봉 시가, 청산 4시간 뒤 종가(손절·익절 없음) · ' +
+          '왕복비용 ' + cost + '% 반영, 펀딩 미반영</span>' +
       '</div>' +
       '<div class="tl-body">' +
         '<div class="tl-main ' + sign + '">' +
@@ -647,7 +648,15 @@
         if (!hits.length) continue;
         hits.sort(function (a, b) { return b.level - a.level; });
 
-        var entry = +kl[f2._i][4];
+        /* 진입은 '다음 봉 시가'다. 신호 봉의 종가로 잡으면 그 종가를 보고 나서
+         * 그 가격에 체결했다는 뜻이 되어 살짝 유리해진다. 실측으로 다음봉시가와
+         * 직전봉종가의 차이가 평균 0.0177%p — 왕복비용 0.14%의 12.7%라 무시할 수 없고,
+         * 알림은 움직이는 봉에서 뜨므로 그 차이가 유리한 쪽으로 치우칠 소지가 있다.
+         * 리플레이·원장이 쓰는 규칙과도 이래야 일치한다.
+         * 청산은 진입 후 정확히 4시간(=신호 봉 기준 48봉) 뒤 종가다. */
+        var ei = f2._i + 1;
+        if (ei >= kl.length) continue;
+        var entry = +kl[ei][1];
         var settled = null;
         var exitIdx = f2._i + 48;
         if (now - barT >= SETTLE_MS && exitIdx < kl.length && entry > 0) {
