@@ -17,7 +17,9 @@
   var KEY_FEED = 'fb.alertfeed.v1';
   var COOLDOWN_MS = 30 * 60 * 1000;   // 같은 종목·규칙 재알림 간격
   var MAX_NOTIF_PER_MIN = 3;
-  var FEED_MAX = 60;
+  // 24시간 재구성분을 담을 수 있어야 한다. 실측 발동 빈도가 하루 100건 안팎이라
+  // 60이면 앞부분이 잘려 나가 '24시간'이라는 표기와 화면이 어긋난다.
+  var FEED_MAX = 200;
 
   /* 카드 수명.
    *
@@ -360,8 +362,14 @@
     var live = feed.filter(function (x) { return x.settled == null; }).length;
     var cnt = $('alert-count');
     if (cnt) {
-      cnt.textContent = feed.length ? '진행 ' + live + ' · 확정 ' + (feed.length - live) +
-        ' · 24시간 지나면 삭제' : '';
+      if (!feed.length) { cnt.textContent = ''; }
+      else {
+        // '24시간'이라고 적어두고 실제로는 잘려 있으면 안 되므로 실제 구간을 보여준다.
+        var oldest = Math.min.apply(null, feed.map(function (x) { return x.t; }));
+        var hrs = Math.round((Date.now() - oldest) / 3600000);
+        cnt.textContent = '최근 ' + hrs + '시간 ' + feed.length + '건 · 진행 ' + live +
+          ' · 확정 ' + (feed.length - live) + ' · 접속 시점과 무관하게 동일';
+      }
     }
   }
 
@@ -403,6 +411,107 @@
     return String(s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+
+  /* ------------------------------------------------------------ 과거 재구성
+   *
+   * 알림을 브라우저에서 계산하면 '창을 언제 열었는가'에 따라 사람마다 피드가 달라진다.
+   * 방금 들어온 사람은 빈 화면을, 6시간 열어둔 사람은 6시간치를 본다. 같은 사이트가
+   * 사람마다 다른 것을 보여주면 그건 공개된 신호라고 하기 어렵다.
+   *
+   * 그런데 알림 규칙은 순수 함수다(리플레이가 같은 파일을 로드하도록 그렇게 만들었다).
+   * 같은 봉이 있으면 누가 언제 계산하든 결과가 같다. 그래서 부팅 시 과거 24시간을
+   * 그대로 되돌려 재구성한다. 결과적으로 모든 방문자가 동일한 피드에서 출발한다.
+   *
+   * 비용은 0이다 — 봉을 200개 대신 488개 받는데 바이낸스 weight가 둘 다 2다(실측).
+   *
+   * 한계 두 가지를 명시해 둔다.
+   *  - 유동성 필터(qv24)는 '지금' 값을 쓴다. 과거 시점의 24h 거래대금을 정확히 내려면
+   *    봉이 288개 더 필요한데, 지금 유동한 종목은 하루 전에도 대체로 유동했다.
+   *  - 펀딩·OI를 쓰는 규칙(펀딩 극단·스퀴즈)은 과거 값을 못 구해 재구성에서 제외한다.
+   *    둘 다 기본으로 꺼져 있고, 실측에서 '새 정보 없음'으로 판정된 규칙들이다.
+   */
+  var BACKFILL_RULES = { vol_spike: 1, breakout: 1, impulse: 1 };
+  var backfilled = false;
+
+  function backfill() {
+    var st = window.__fb;
+    if (backfilled || !st || !st.booted || !st.universe || !st.universe.length) return;
+    backfilled = true;
+
+    var now = Date.now();
+    var made = [];
+    var seen = {};                     // "sym|rule" -> 마지막 발동 시각 (쿨다운)
+
+    st.universe.forEach(function (sym) {
+      var kl = st.bars[sym];
+      var tick = st.tickers[sym];
+      if (!kl || kl.length < CFG.BARS + 10 || !tick) return;
+      if (+tick.quoteVolume < CFG.MIN_QV_RECO) return;
+
+      var meta = st.meta[sym] || {};
+      var start = Math.max(CFG.BARS, kl.length - CFG.BACKFILL_BARS);
+
+      for (var i = start; i < kl.length; i += CFG.BACKFILL_STEP) {
+        var bars = kl.slice(i - CFG.BARS + 1, i + 1);
+        if (bars.length < CFG.BARS) continue;
+
+        // 과거 시점이므로 펀딩·OI는 넘기지 않는다(그 시점 값을 모른다).
+        var f = Score.buildFeatures(sym, bars, tick, null, null, meta);
+        if (!f) continue;
+
+        var barT = kl[i][6];           // 봉 종료 시각 = 그때 알림이 떴을 시각
+        if (now - barT > EXPIRE_MS) continue;
+
+        var hits = Alerts.evaluate(f).filter(function (h) {
+          return BACKFILL_RULES[h.id] && ruleOn(h.id) && h.level >= cfg.minLevel;
+        });
+        hits = hits.filter(function (h) {
+          var k = sym + '|' + h.id;
+          if (barT - (seen[k] || 0) < COOLDOWN_MS) return false;
+          seen[k] = barT;
+          return true;
+        });
+        if (!hits.length) continue;
+
+        hits.sort(function (a, b) { return b.level - a.level; });
+
+        // 4시간이 지난 신호는 그 시점의 실제 봉으로 성적을 확정한다.
+        // 현재가로 매기면 20시간 전 신호를 지금 가격으로 채점하는 셈이 된다.
+        var entry = +kl[i][4];
+        var settled = null;
+        var exitIdx = i + 48;
+        if (now - barT >= SETTLE_MS && exitIdx < kl.length && entry > 0) {
+          var raw = (+kl[exitIdx][4] / entry - 1) * 100;
+          settled = Math.round((f.side === 'SHORT' ? -raw : raw) * 100) / 100;
+        }
+
+        made.push({
+          t: barT, symbol: sym, base: f.base, rules: hits,
+          level: hits[0].level, dir: hits[0].dir || 0,
+          price: entry, precision: f.pricePrecision,
+          exp_move: f.exp_move, ret_1h: f.ret_1h, side: f.side, mark: f.mark,
+          pct: f.pct, spread: f.spread, settled: settled, bf: 1,
+        });
+      }
+    });
+
+    if (!made.length) return;
+
+    // 라이브 쪽이 방금 재구성한 것을 다시 울리지 않도록 쿨다운을 이어받는다.
+    Object.keys(seen).forEach(function (k) {
+      if (!lastFired[k] || lastFired[k] < seen[k]) lastFired[k] = seen[k];
+    });
+
+    // 이미 저장돼 있던 기록과 겹치면 재구성본을 버린다(사용자가 실제로 본 쪽을 남긴다).
+    var have = {};
+    feed.forEach(function (x) { have[x.symbol + '|' + Math.floor(x.t / COOLDOWN_MS)] = 1; });
+    var add = made.filter(function (x) { return !have[x.symbol + '|' + Math.floor(x.t / COOLDOWN_MS)]; });
+
+    feed = feed.concat(add).sort(function (a, b) { return b.t - a.t; }).slice(0, FEED_MAX);
+    saveFeed();
+    render();
   }
 
   /* ------------------------------------------------------------------ 제어 */
@@ -447,6 +556,11 @@
         if (t && t.alerts) { stats = t.alerts; render(); renderRuleStats(); }
       })
       .catch(function () {});
+
+    // 부팅이 끝나는 대로 과거 24시간을 재구성한다(봉이 준비된 뒤여야 한다).
+    var bfTimer = setInterval(function () {
+      if (window.__fb && window.__fb.booted) { clearInterval(bfTimer); backfill(); }
+    }, 1000);
 
     setInterval(scan, 5000);
     // 신호 시점 대비 현재가를 계속 갱신한다. 새 알림이 없어도 카드가 살아 있어야 한다.

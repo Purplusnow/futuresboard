@@ -82,7 +82,7 @@
       });
 
       await Binance.klinesBatch(
-        state.universe, CFG.INTERVAL, CFG.BARS, 8,
+        state.universe, CFG.INTERVAL, CFG.SEED_BARS, 8,
         function (done, total) {
           setMeta('캔들 시딩 ' + done + '/' + total + '…');
           if (done % 10 === 0) setWeight();
@@ -168,7 +168,7 @@
       arr[arr.length - 1] = row;
     } else if (k.t > lastOpen) {
       arr.push(row);
-      if (arr.length > CFG.BARS) arr.shift();
+      if (arr.length > CFG.SEED_BARS) arr.shift();
     }
   }
 
@@ -193,7 +193,7 @@
             if (openT === lastOpen) arr[arr.length - 1] = fresh[i];
             else if (openT > lastOpen) {
               arr.push(fresh[i]);
-              if (arr.length > CFG.BARS) arr.shift();
+              if (arr.length > CFG.SEED_BARS) arr.shift();
             }
           }
         } catch (e) { /* 다음 주기에 다시 */ }
@@ -260,8 +260,11 @@
     var feats = [];
     for (var i = 0; i < state.universe.length; i++) {
       var sym = state.universe[i];
+      // 봉은 488개를 들고 있지만 지표는 마지막 200개로만 낸다.
+      // 리플레이·K 보정이 전부 200봉 기준이라 여기서 어긋나면 검증이 무의미해진다.
+      var kl = state.bars[sym];
       var f = Score.buildFeatures(
-        sym, state.bars[sym], state.tickers[sym],
+        sym, kl.length > CFG.BARS ? kl.slice(-CFG.BARS) : kl, state.tickers[sym],
         state.marks[sym], state.oi[sym], state.meta[sym]
       );
       if (f) feats.push(f);
