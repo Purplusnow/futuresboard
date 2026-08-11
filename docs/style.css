@@ -590,13 +590,60 @@ html, body { overflow-x: hidden; }
 }
 .alert-feed { min-height: 118px; }
 
-/* 진입추천 옆 확신도 기호. ※(방향 불분명)는 추천 자체를 눌러 구분한다. */
-.ac-entry-mark { font-size: 14px; line-height: 1; }
-.ac-entry-mark[data-m="◎"] { color: var(--accent); }
-.ac-entry-mark[data-m="○"] { color: var(--accent-2); }
-.ac-entry-mark[data-m="△"] { color: var(--fg-dim); }
-.ac-entry-mark[data-m="※"] { color: var(--fg-mute); font-size: 12px; }
-.ac-entry[data-weak="1"] .ac-entry-side {
+/* 진입추천 옆 확신도. 기호 대신 말로 — 범례를 안 봐도 읽힌다. */
+.ac-conf {
+  font-size: 11px; padding: 1px 6px; border-radius: 3px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--fg-mute);
+  white-space: nowrap;
+}
+.ac-entry[data-lv="high"] .ac-conf { color: var(--accent); background: rgba(255, 194, 71, 0.14); }
+.ac-entry[data-lv="mid"]  .ac-conf { color: var(--accent-2); background: rgba(76, 194, 255, 0.13); }
+/* 방향을 못 고른 경우는 추천 배지 자체를 눌러 한눈에 구분되게 한다 */
+.ac-entry[data-lv="unclear"] .ac-entry-side {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg-mute);
+}
+
+/* 신호 이후 현재 성적 — 카드가 스스로 채점한다 */
+.ac-result {
+  margin-top: 4px;
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 11.5px;
+}
+.ac-result-label { color: var(--fg-mute); }
+.ac-result-word { font-weight: 700; padding: 1px 6px; border-radius: 3px; }
+.ac-result[data-r="hit"]  .ac-result-word { color: var(--up); background: rgba(34, 211, 166, 0.16); }
+.ac-result[data-r="miss"] .ac-result-word { color: var(--down); background: rgba(255, 77, 109, 0.16); }
+.ac-result[data-r="hit"]  .ac-result-pnl { color: var(--up); }
+.ac-result[data-r="miss"] .ac-result-pnl { color: var(--down); }
+.ac-thin {
+  font-size: 10.5px; padding: 1px 5px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06); color: var(--fg-mute); white-space: nowrap;
+}
+.alert-card { min-width: 196px; }
+.alert-feed { min-height: 142px; }
+
+/* 피드를 가로 스크롤에서 아래로 흐르는 격자로 바꾼다.
+ * 카드가 늘어날수록 가로 스크롤은 뒤쪽 카드를 사실상 안 보이게 만든다. */
+.alert-feed {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 8px;
+  overflow-x: visible;
+  overflow-y: auto;
+  max-height: 320px;          /* 보드를 밀어내지 않도록 상한을 둔다 */
+  min-height: 0;
+  padding-right: 4px;
+}
+.alert-feed::-webkit-scrollbar { width: 6px; height: 6px; }
+.alert-feed::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+.alert-card { min-width: 0; }
+
+/* 확정된 카드는 한 발 물러나게 — 진행 중인 것이 먼저 눈에 들어와야 한다 */
+.ac-result[data-done="1"] .ac-result-label { color: var(--fg-dim); }
+.alert-card:has(.ac-result[data-done="1"]) { opacity: 0.92; border-style: dashed; }
+
+@media (max-width: 560px) {
+  .alert-feed { grid-template-columns: 1fr; max-height: 300px; }
 }

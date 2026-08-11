@@ -42,6 +42,7 @@
       <button class="ab" id="alert-toggle" data-on="0">알림 켜기</button>
       <button class="ab icon" id="alert-sound" data-on="1" title="소리 끄기">🔔</button>
       <span class="alerts-note">탭이 열려 있는 동안만 동작합니다 (백그라운드 탭 포함)</span>
+      <span class="alerts-note" id="alert-count"></span>
     </div>
   </div>
   <div class="alert-feed" id="alert-feed"></div>
@@ -119,7 +120,9 @@
   <p class="legend">
     <b>예상 변동 4H</b>는 ATR 기반 추정치입니다 — 59일·39,522건 실측으로 보정했고 순위상관 ρ=0.62.
     <b>방향(롱·숏 편향)은 검증되지 않았습니다.</b>
-    ◎○△※는 스코어 상위 2·10·25%를 뜻할 뿐, 수익을 뜻하지 않습니다. 하단 자기검증 참조.
+    보드의 <b>◎○△※</b>는 스코어 상위 2·10·25%·그 외이며, 알림 카드의
+    <b>확신도 높음·보통·낮음</b>이 각각 여기 대응합니다. 롱·숏 점수가 붙어 있으면 <b>방향 불분명</b>으로 표시합니다.
+    어느 쪽도 수익을 뜻하지 않습니다 — 하단 자기검증 참조.
   </p>
   <p class="disclaimer">
     본 페이지는 공개 시세 데이터를 브라우저에서 기계적으로 가공한 <strong>정보 제공</strong> 화면입니다.

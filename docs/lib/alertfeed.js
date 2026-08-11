@@ -19,6 +19,15 @@
   var MAX_NOTIF_PER_MIN = 3;
   var FEED_MAX = 60;
 
+  /* 카드 수명.
+   *
+   * 알림의 주장은 '4시간 안에 평소보다 크게 움직인다'였다(실측 기준도 4h).
+   * 그러니 성적도 4시간까지만 매기고 거기서 얼려야 한다. 계속 갱신하면
+   * 12시간 뒤 뒤집힌 결과가 그 알림의 성적처럼 보이는데, 그건 다른 주장이다.
+   * 얼린 뒤에는 하루까지만 남기고 지운다 — 어제 신호는 화면에서 의미가 없다. */
+  var SETTLE_MS = 4 * 60 * 60 * 1000;
+  var EXPIRE_MS = 24 * 60 * 60 * 1000;
+
   var cfg = loadCfg();
   var feed = loadFeed();
   var lastFired = {};                  // "sym|rule" -> ts
@@ -88,9 +97,29 @@
           level: hit.level, dir: hit.dir || 0,
           price: f.price, precision: f.pricePrecision,
           exp_move: f.exp_move, ret_1h: f.ret_1h, side: f.side, mark: f.mark,
+          pct: f.pct, spread: f.spread,
         });
       }
     }
+
+    // 4시간이 지난 카드는 성적을 확정하고, 하루 지난 카드는 버린다.
+    var lifecycleChanged = false;
+    var kept = [];
+    for (var m = 0; m < feed.length; m++) {
+      var c = feed[m];
+      if (now - c.t >= EXPIRE_MS) { lifecycleChanged = true; continue; }
+      if (c.settled == null && now - c.t >= SETTLE_MS) {
+        var bk = st.book[c.symbol];
+        if (bk && c.price > 0) {
+          var raw = (bk.mid / c.price - 1) * 100;
+          c.settled = Math.round((c.side === 'SHORT' ? -raw : raw) * 100) / 100;
+          c.settledAt = now;
+          lifecycleChanged = true;
+        }
+      }
+      kept.push(c);
+    }
+    if (lifecycleChanged) { feed = kept; saveFeed(); render(); }
 
     if (!fresh.length) return;
 
@@ -180,7 +209,8 @@
       var s2 = statFor(a.rule);
 
       // 신호 시점 가격 → 현재가. 각 카드가 그 자체로 작은 검증 기록이 된다.
-      var now = st && st.book && st.book[a.symbol] ? st.book[a.symbol].mid : null;
+      var settled = a.settled != null;
+      var now = (!settled && st && st.book && st.book[a.symbol]) ? st.book[a.symbol].mid : null;
       var chg = (now != null && a.price > 0) ? (now / a.price - 1) * 100 : null;
 
       // 사건의 방향(무슨 일이 있었나)은 사실이므로 그대로 쓴다.
@@ -210,22 +240,56 @@
         '</div>' +
 
         // 스코어가 채택한 진입 방향.
-        // 모델이 고른 진입 방향 + 그 방향에 대한 확신도.
-        // 기호가 ※ 면 롱·숏 점수가 붙어 있어 모델 스스로 방향을 못 고른 경우다.
-        // 확신 있는 추천과 동전 던지기를 카드에서 구분할 수 있어야 한다.
-        (a.side ? '<div class="ac-entry" data-side="' + esc(a.side) + '"' +
-          (a.mark === '※' ? ' data-weak="1"' : '') + '>' +
-          '<span class="ac-entry-label">진입추천</span>' +
-          (a.mark ? '<span class="ac-entry-mark" data-m="' + esc(a.mark) + '" title="' +
-            (a.mark === '◎' ? '확신 높음 (스코어 상위 2%)'
-             : a.mark === '○' ? '양호 (상위 10%)'
-             : a.mark === '△' ? '보통 (상위 25%)'
-             : '방향 불분명 — 롱·숏 점수가 붙어 있음') + '">' + esc(a.mark) + '</span>' : '') +
-          '<span class="ac-entry-side">' + esc(a.side) + '</span></div>' : '') +
+        // 모델이 고른 진입 방향 + 추천강도 + 신호 이후 현재 성적.
+        //
+        // 기호(◎○△※)는 '방향 불분명'과 '점수 낮음'을 둘 다 ※ 로 뭉개고 있었다.
+        // 성격이 다른 두 가지라 말로 풀면서 분리한다.
+        //   추천강도  = 스코어 백분위 (높음 상위2% / 보통 10% / 낮음 그 외)
+        //   방향불분명 = 롱·숏 점수차 10 미만 — 모델이 방향 자체를 못 고른 경우
+        (a.side ? (function () {
+          var unclear = a.spread != null && a.spread < 10;
+          var lv = unclear ? 'unclear'
+            : (a.pct >= 98 ? 'high' : (a.pct >= 90 ? 'mid' : 'low'));
+          var txt = { high: '추천강도 높음', mid: '추천강도 보통',
+                      low: '추천강도 낮음', unclear: '방향 불분명' }[lv];
+          var tip = { high: '스코어 상위 2%', mid: '스코어 상위 10%',
+                      low: '스코어 상위 25% 밖',
+                      unclear: '롱·숏 점수가 붙어 있어 모델이 방향을 고르지 못했습니다' }[lv];
+
+          // 신호 이후 성적. 방향을 적용한 손익이라 숏은 가격이 내려야 적중이다.
+          // 왕복비용 0.14%를 못 넘으면 방향이 맞아도 실제로는 남는 게 없어 별도 표시한다.
+          var done = a.settled != null;
+          var pnl = done ? a.settled : (chg == null ? null : (a.side === 'SHORT' ? -chg : chg));
+          var st2 = '';
+          if (pnl != null) {
+            var cls = pnl > 0 ? 'hit' : 'miss';
+            var word = pnl > 0 ? '적중' : '실패';
+            var thin = pnl > 0 && pnl < CFG.COST_ROUND_TRIP;
+            st2 = '<div class="ac-result" data-r="' + cls + '"' + (done ? ' data-done="1"' : '') + '>' +
+              '<span class="ac-result-label">' + (done ? '4h 확정' : '진행중') + '</span>' +
+              '<span class="ac-result-word">' + word + '</span>' +
+              '<span class="ac-result-pnl">' + (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%</span>' +
+              (thin ? '<span class="ac-thin" title="왕복비용 ' + CFG.COST_ROUND_TRIP +
+                      '%를 못 넘어 실제로는 남는 것이 없습니다">비용미만</span>' : '') +
+              '</div>';
+          }
+
+          return '<div class="ac-entry" data-side="' + esc(a.side) + '" data-lv="' + lv + '">' +
+            '<span class="ac-entry-label">진입추천</span>' +
+            '<span class="ac-entry-side">' + esc(a.side) + '</span>' +
+            '<span class="ac-conf" title="' + esc(tip) + '">' + txt + '</span></div>' + st2;
+        })() : '') +
         '</div>';
     }
     el.innerHTML = html;
     el.scrollLeft = keep;
+
+    var live = feed.filter(function (x) { return x.settled == null; }).length;
+    var cnt = $('alert-count');
+    if (cnt) {
+      cnt.textContent = feed.length ? '진행 ' + live + ' · 확정 ' + (feed.length - live) +
+        ' · 24시간 지나면 삭제' : '';
+    }
   }
 
   /* 규칙별 실측치 — 임계값이 감이 아니라 측정에서 나왔음을 보이는 자리 */
