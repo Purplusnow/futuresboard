@@ -674,3 +674,58 @@ html, body { overflow-x: hidden; }
 .ac-result[data-r="wait"] .ac-result-word {
   color: var(--fg-mute); background: rgba(255, 255, 255, 0.06); font-weight: 500;
 }
+
+/* ------------------------------------------------- 추천 합산 성적 (전광판) */
+
+.alert-tally {
+  margin: 4px 0 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 60%),
+    var(--panel);
+}
+.tl-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.tl-title { font-size: 14px; font-weight: 700; color: var(--fg); letter-spacing: -0.01em; }
+.tl-sub { font-family: var(--mono); font-size: 11px; color: var(--fg-mute); }
+
+.tl-body {
+  display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap;
+  margin-top: 10px;
+}
+.tl-main { display: flex; flex-direction: column; gap: 2px; }
+.tl-num {
+  font-family: var(--mono); font-size: 40px; font-weight: 800;
+  line-height: 1; letter-spacing: -0.02em;
+}
+.tl-main.up .tl-num { color: var(--up); text-shadow: 0 0 22px rgba(34, 211, 166, 0.35); }
+.tl-main.down .tl-num { color: var(--down); text-shadow: 0 0 22px rgba(255, 77, 109, 0.3); }
+.tl-cap { font-size: 11.5px; color: var(--fg-mute); }
+
+.tl-cells { display: flex; gap: 22px; flex-wrap: wrap; padding-bottom: 3px; }
+.tl-cell { display: flex; flex-direction: column; gap: 2px; }
+.tl-cell-v { font-family: var(--mono); font-size: 17px; font-weight: 700; color: var(--fg-dim); }
+.tl-cell-v.up { color: var(--up); }
+.tl-cell-v.down { color: var(--down); }
+.tl-cell-l { font-size: 11px; color: var(--fg-mute); }
+
+.tl-wait { font-family: var(--mono); font-size: 12px; color: var(--fg-mute); }
+
+@media (max-width: 560px) {
+  .alert-tally { padding: 12px 14px; }
+  .tl-num { font-size: 32px; }
+  .tl-body { gap: 16px; }
+  .tl-cells { gap: 16px; }
+  .tl-cell-v { font-size: 15px; }
+}
+
+/* 같은 종목이 여러 번 발동한 경우 — 카드는 최신 1장, 횟수는 배지로 */
+.ac-rep {
+  font-family: var(--mono); font-size: 10.5px;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(255, 194, 71, 0.14); color: var(--accent);
+  white-space: nowrap;
+}
+.ac-top { gap: 6px; }
+.ac-top .ac-time { margin-left: auto; }

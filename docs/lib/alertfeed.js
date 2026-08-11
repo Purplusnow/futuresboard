@@ -266,8 +266,22 @@
     var st = window.__fb;
     var html = '';
 
-    for (var i = 0; i < feed.length; i++) {          // 전부 표시 (수명 관리로 개수가 제한된다)
-      var a = feed[i];
+    /* 한 종목이 24시간 동안 여러 번 발동하는 것은 정상이다(실측 51종목 107건,
+     * 최다 6회). 다만 화면에 같은 종목이 여러 장 깔리면 다른 종목을 밀어낸다.
+     * 표시는 종목당 최신 한 장으로 접고 발동 횟수를 배지로 남긴다.
+     * 저장은 전건을 유지한다 — 합산 성적은 사건 단위로 세야 정확하다. */
+    var latest = [], repeat = {};
+    var byS = {};
+    for (var q = 0; q < feed.length; q++) {
+      var rec = feed[q];
+      repeat[rec.symbol] = (repeat[rec.symbol] || 0) + 1;
+      if (!byS[rec.symbol] || rec.t > byS[rec.symbol].t) byS[rec.symbol] = rec;
+    }
+    Object.keys(byS).forEach(function (k) { latest.push(byS[k]); });
+    latest.sort(function (a, b) { return b.t - a.t; });
+
+    for (var i = 0; i < latest.length; i++) {
+      var a = latest[i];
       var s2 = null;
       (a.rules || [{ id: a.rule }]).forEach(function (r) {
         var v = statFor(r.id);
@@ -292,6 +306,9 @@
 
       html += '<div class="alert-card" data-level="' + a.level + '">' +
         '<div class="ac-top"><span class="ac-sym">' + esc(a.base) + '</span>' +
+          (repeat[a.symbol] > 1
+            ? '<span class="ac-rep" title="최근 24시간 동안 ' + repeat[a.symbol] +
+              '번 발동했습니다 (카드는 최신 1건)">' + repeat[a.symbol] + '회</span>' : '') +
         '<span class="ac-time">' + hhmm(a.t) + '</span></div>' +
 
         '<div class="ac-rule">' + ruleHtml +
@@ -359,6 +376,8 @@
     }
     el.innerHTML = html;
 
+    renderTally();
+
     var live = feed.filter(function (x) { return x.settled == null; }).length;
     var cnt = $('alert-count');
     if (cnt) {
@@ -367,8 +386,8 @@
         // '24시간'이라고 적어두고 실제로는 잘려 있으면 안 되므로 실제 구간을 보여준다.
         var oldest = Math.min.apply(null, feed.map(function (x) { return x.t; }));
         var hrs = Math.round((Date.now() - oldest) / 3600000);
-        cnt.textContent = '최근 ' + hrs + '시간 ' + feed.length + '건 · 진행 ' + live +
-          ' · 확정 ' + (feed.length - live) + ' · 접속 시점과 무관하게 동일';
+        cnt.textContent = '최근 ' + hrs + '시간 · ' + latest.length + '종목 ' + feed.length +
+          '건 · 진행 ' + live + ' · 접속 시점과 무관하게 동일';
       }
     }
   }
@@ -413,6 +432,70 @@
     });
   }
 
+
+
+  /* 카드 전체 합산 성적 — 전광판.
+   *
+   * 피드가 접속 시점과 무관하게 동일해졌으므로 이 합계도 모든 방문자에게 같다.
+   * 그래서 비로소 '공개된 성적'이라고 부를 수 있다.
+   *
+   * 헤드라인은 반드시 비용을 뺀 값이다. 각 카드는 왕복 매매 하나에 해당하므로
+   * 건당 왕복비용을 그대로 차감한다. 총수익만 크게 띄우면 이 사이트가 여태
+   * 지켜온 기준을 화면 맨 위에서 스스로 어기는 셈이 된다.
+   *
+   * 확정분(4시간 경과)만 집계한다. 진행 중인 카드를 섞으면 아직 끝나지 않은
+   * 거래가 성적표에 들어가고, 시간이 갈수록 숫자가 흔들린다.
+   */
+  function renderTally() {
+    var el = $('alert-tally');
+    if (!el) return;
+
+    var done = feed.filter(function (x) { return x.settled != null; });
+    var live = feed.length - done.length;
+
+    if (done.length < 3) {
+      el.hidden = false;
+      el.innerHTML = '<div class="tl-wait">확정된 추천이 ' + done.length +
+        '건입니다. 3건 이상 쌓이면 합산 성적을 표시합니다. (진행 중 ' + live + '건)</div>';
+      return;
+    }
+
+    var cost = CFG.COST_ROUND_TRIP;
+    var gross = done.reduce(function (a, x) { return a + x.settled; }, 0);
+    var net = gross - cost * done.length;
+    var hit = done.filter(function (x) { return x.settled - cost > 0; }).length;
+    var span = Math.round((Date.now() - Math.min.apply(null, done.map(function (x) { return x.t; }))) / 3600000);
+
+    var sign = net >= 0 ? 'up' : 'down';
+    el.hidden = false;
+    el.innerHTML =
+      '<div class="tl-head">' +
+        '<span class="tl-title">추천 합산 성적</span>' +
+        '<span class="tl-sub">확정 ' + done.length + '건 (' +
+          Object.keys(done.reduce(function (a, x) { a[x.symbol] = 1; return a; }, {})).length +
+          '종목) · 최근 ' + span + '시간 · ' +
+          '진입 다음 봉, 청산 4시간 뒤 · 왕복비용 ' + cost + '% 반영</span>' +
+      '</div>' +
+      '<div class="tl-body">' +
+        '<div class="tl-main ' + sign + '">' +
+          '<span class="tl-num">' + (net >= 0 ? '+' : '') + net.toFixed(2) + '%</span>' +
+          '<span class="tl-cap">순손익 합계</span>' +
+        '</div>' +
+        '<div class="tl-cells">' +
+          cell('평균', (net / done.length >= 0 ? '+' : '') + (net / done.length).toFixed(3) + '%',
+               net / done.length >= 0 ? 'up' : 'down') +
+          cell('적중', (hit / done.length * 100).toFixed(0) + '%', '') +
+          cell('총수익', (gross >= 0 ? '+' : '') + gross.toFixed(2) + '%', gross >= 0 ? 'up' : 'down') +
+          cell('비용', '−' + (cost * done.length).toFixed(2) + '%', 'down') +
+          cell('진행중', live + '건', '') +
+        '</div>' +
+      '</div>';
+  }
+
+  function cell(label, val, cls) {
+    return '<div class="tl-cell"><span class="tl-cell-v ' + cls + '">' + val + '</span>' +
+      '<span class="tl-cell-l">' + label + '</span></div>';
+  }
 
   /* ------------------------------------------------------------ 과거 재구성
    *
