@@ -571,15 +571,32 @@ html, body { overflow-x: hidden; }
 .ac-px-chg.up { color: var(--up); }
 .ac-px-chg.down { color: var(--down); }
 
-/* 스코어 편향 — 추천처럼 보이면 안 되므로 가장 약하게, 딱지를 붙여서 */
-.ac-bias {
-  margin-top: 4px;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--fg-mute);
+/* 진입 추천 — 카드에서 바로 읽히도록 방향 색으로 표시한다 */
+.ac-entry {
+  margin-top: 5px;
+  font-family: var(--mono); font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
 }
-.ac-unverified {
-  padding: 1px 4px; border-radius: 3px;
+.ac-entry-label { color: var(--fg-mute); }
+.ac-entry-side {
+  font-weight: 700; letter-spacing: 0.06em;
+  padding: 1px 7px; border-radius: 4px;
+}
+.ac-entry[data-side="LONG"] .ac-entry-side {
+  color: var(--long); background: rgba(34, 211, 166, 0.16);
+}
+.ac-entry[data-side="SHORT"] .ac-entry-side {
+  color: var(--short); background: rgba(255, 92, 138, 0.16);
+}
+.alert-feed { min-height: 118px; }
+
+/* 진입추천 옆 확신도 기호. ※(방향 불분명)는 추천 자체를 눌러 구분한다. */
+.ac-entry-mark { font-size: 14px; line-height: 1; }
+.ac-entry-mark[data-m="◎"] { color: var(--accent); }
+.ac-entry-mark[data-m="○"] { color: var(--accent-2); }
+.ac-entry-mark[data-m="△"] { color: var(--fg-dim); }
+.ac-entry-mark[data-m="※"] { color: var(--fg-mute); font-size: 12px; }
+.ac-entry[data-weak="1"] .ac-entry-side {
   background: rgba(255, 255, 255, 0.06);
   color: var(--fg-mute);
 }
-.alert-feed { min-height: 118px; }

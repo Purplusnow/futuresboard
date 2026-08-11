@@ -209,9 +209,19 @@
           (s2 && s2.lift_lag ? ' <span class="ac-stat">· 평소의 ' + s2.lift_lag.toFixed(1) + '배</span>' : '') +
         '</div>' +
 
-        // 스코어가 기운 방향. 검증되지 않았으므로 '미검증'을 떼지 않는다.
-        (a.side ? '<div class="ac-bias">편향 ' + esc(a.side) +
-          ' <span class="ac-unverified">미검증</span></div>' : '') +
+        // 스코어가 채택한 진입 방향.
+        // 모델이 고른 진입 방향 + 그 방향에 대한 확신도.
+        // 기호가 ※ 면 롱·숏 점수가 붙어 있어 모델 스스로 방향을 못 고른 경우다.
+        // 확신 있는 추천과 동전 던지기를 카드에서 구분할 수 있어야 한다.
+        (a.side ? '<div class="ac-entry" data-side="' + esc(a.side) + '"' +
+          (a.mark === '※' ? ' data-weak="1"' : '') + '>' +
+          '<span class="ac-entry-label">진입추천</span>' +
+          (a.mark ? '<span class="ac-entry-mark" data-m="' + esc(a.mark) + '" title="' +
+            (a.mark === '◎' ? '확신 높음 (스코어 상위 2%)'
+             : a.mark === '○' ? '양호 (상위 10%)'
+             : a.mark === '△' ? '보통 (상위 25%)'
+             : '방향 불분명 — 롱·숏 점수가 붙어 있음') + '">' + esc(a.mark) + '</span>' : '') +
+          '<span class="ac-entry-side">' + esc(a.side) + '</span></div>' : '') +
         '</div>';
     }
     el.innerHTML = html;
