@@ -83,23 +83,47 @@
       var f = st.feats[i];
       if (f.qv24 < CFG.MIN_QV_RECO) continue;          // 얇은 호가는 알릴 가치가 없다
 
+      // 한 종목에서 여러 규칙이 동시에 터지는 일이 흔하다(거래량 폭증 + 돌파 + 급변).
+      // 규칙마다 카드를 만들면 같은 종목이 여러 장 깔려 다른 종목을 밀어낸다.
+      // 오히려 여러 규칙이 겹친 것이 더 강한 사건이므로 한 장에 모아 보여준다.
+      var hits = [];
       var fired = Alerts.evaluate(f);
       for (var j = 0; j < fired.length; j++) {
         var hit = fired[j];
         if (!ruleOn(hit.id) || hit.level < cfg.minLevel) continue;
-
         var key = f.symbol + '|' + hit.id;
-        if (now - (lastFired[key] || 0) < COOLDOWN_MS) continue;
+        if (now - (lastFired[key] || 0) < COOLDOWN_MS) continue;   // 쿨다운은 규칙별로 유지
         lastFired[key] = now;
-
-        fresh.push({
-          t: now, symbol: f.symbol, base: f.base, rule: hit.id, label: hit.label,
-          level: hit.level, dir: hit.dir || 0,
-          price: f.price, precision: f.pricePrecision,
-          exp_move: f.exp_move, ret_1h: f.ret_1h, side: f.side, mark: f.mark,
-          pct: f.pct, spread: f.spread,
-        });
+        hits.push({ id: hit.id, label: hit.label, level: hit.level, dir: hit.dir || 0 });
       }
+      if (!hits.length) continue;
+
+      hits.sort(function (a, b) { return b.level - a.level; });
+
+      // 아직 확정되지 않은 같은 종목 카드가 있으면 거기에 규칙만 더한다.
+      var live = null;
+      for (var m = 0; m < feed.length; m++) {
+        if (feed[m].symbol === f.symbol && feed[m].settled == null) { live = feed[m]; break; }
+      }
+      if (live) {
+        var known = {};
+        (live.rules || []).forEach(function (r) { known[r.id] = 1; });
+        var added = hits.filter(function (r) { return !known[r.id]; });
+        if (added.length) {
+          live.rules = (live.rules || []).concat(added);
+          live.level = Math.max(live.level, added[0].level);
+          fresh.push(live);            // 알림·소리는 새 규칙이 붙었을 때만
+        }
+        continue;
+      }
+
+      fresh.push({
+        t: now, symbol: f.symbol, base: f.base,
+        rules: hits, level: hits[0].level, dir: hits[0].dir,
+        price: f.price, precision: f.pricePrecision,
+        exp_move: f.exp_move, ret_1h: f.ret_1h, side: f.side, mark: f.mark,
+        pct: f.pct, spread: f.spread,
+      });
     }
 
     // 4시간이 지난 카드는 성적을 확정하고, 하루 지난 카드는 버린다.
@@ -125,7 +149,8 @@
 
     // 강한 것부터. 한 번에 많이 뜨면 아래쪽은 피드에만 남는다.
     fresh.sort(function (a, b) { return b.level - a.level; });
-    feed = fresh.concat(feed).slice(0, FEED_MAX);
+    var brandNew = fresh.filter(function (x) { return feed.indexOf(x) < 0; });
+    feed = brandNew.concat(feed).slice(0, FEED_MAX);
     saveFeed();
     render();
 
@@ -201,12 +226,15 @@
     }
 
     var st = window.__fb;
-    var keep = el.scrollLeft;          // 주기적 재렌더에서 스크롤 위치를 잃지 않게
     var html = '';
 
-    for (var i = 0; i < Math.min(feed.length, 24); i++) {
+    for (var i = 0; i < feed.length; i++) {          // 전부 표시 (수명 관리로 개수가 제한된다)
       var a = feed[i];
-      var s2 = statFor(a.rule);
+      var s2 = null;
+      (a.rules || [{ id: a.rule }]).forEach(function (r) {
+        var v = statFor(r.id);
+        if (v && v.lift_lag && (!s2 || v.lift_lag > s2.lift_lag)) s2 = v;
+      });
 
       // 신호 시점 가격 → 현재가. 각 카드가 그 자체로 작은 검증 기록이 된다.
       var settled = a.settled != null;
@@ -217,13 +245,19 @@
       var arrow = a.dir > 0 ? '↑' : (a.dir < 0 ? '↓' : '');
       var arrowCls = a.dir > 0 ? 'up' : (a.dir < 0 ? 'down' : '');
 
+      // 예전 형식(rule/label 단수)도 읽을 수 있게 정규화한다.
+      var rules = a.rules || [{ id: a.rule, label: a.label, level: a.level }];
+      var ruleHtml = rules.map(function (r) {
+        return '<span class="ac-rule-item">' + esc(r.label) +
+          (r.level >= 2 ? ' <b>강</b>' : '') + '</span>';
+      }).join('');
+
       html += '<div class="alert-card" data-level="' + a.level + '">' +
         '<div class="ac-top"><span class="ac-sym">' + esc(a.base) + '</span>' +
         '<span class="ac-time">' + hhmm(a.t) + '</span></div>' +
 
-        '<div class="ac-rule">' + esc(a.label) +
-          (a.level >= 2 ? ' <b>강</b>' : '') +
-          (arrow ? ' <span class="ac-arrow ' + arrowCls + '">' + arrow + '</span>' : '') +
+        '<div class="ac-rule">' + ruleHtml +
+          (arrow ? '<span class="ac-arrow ' + arrowCls + '">' + arrow + '</span>' : '') +
         '</div>' +
 
         '<div class="ac-px">' +
@@ -282,7 +316,6 @@
         '</div>';
     }
     el.innerHTML = html;
-    el.scrollLeft = keep;
 
     var live = feed.filter(function (x) { return x.settled == null; }).length;
     var cnt = $('alert-count');

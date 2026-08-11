@@ -630,14 +630,9 @@ html, body { overflow-x: hidden; }
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
   gap: 8px;
-  overflow-x: visible;
-  overflow-y: auto;
-  max-height: 320px;          /* 보드를 밀어내지 않도록 상한을 둔다 */
+  overflow: visible;          /* 자체 스크롤 없이 전부 아래로 흐르게 둔다 */
   min-height: 0;
-  padding-right: 4px;
 }
-.alert-feed::-webkit-scrollbar { width: 6px; height: 6px; }
-.alert-feed::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
 .alert-card { min-width: 0; }
 
 /* 확정된 카드는 한 발 물러나게 — 진행 중인 것이 먼저 눈에 들어와야 한다 */
@@ -645,5 +640,14 @@ html, body { overflow-x: hidden; }
 .alert-card:has(.ac-result[data-done="1"]) { opacity: 0.92; border-style: dashed; }
 
 @media (max-width: 560px) {
-  .alert-feed { grid-template-columns: 1fr; max-height: 300px; }
+  .alert-feed { grid-template-columns: 1fr; }
 }
+
+/* 한 카드에 여러 규칙이 들어갈 수 있다 — 칩으로 나열한다 */
+.ac-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 3px; }
+.ac-rule-item {
+  font-size: 11px; padding: 1px 6px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06); color: var(--fg-dim);
+  white-space: nowrap;
+}
+.ac-rule-item b { color: var(--accent); font-size: 10px; }
