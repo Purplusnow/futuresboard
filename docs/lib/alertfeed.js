@@ -103,6 +103,25 @@
 
   /* 지금 설정(강도)에 해당하는 실측 버킷. 강도 2만 알리면서 강도 1 통계를 보여주면
    * 화면의 숫자가 실제로 받게 될 알림과 달라진다. */
+  /* 추천 자격.
+   *
+   * 확신이 낮으면 방향을 제시하지 않는다. 카드도 합산 성적도 같은 기준을 써야
+   * '추천 성적'이라는 말이 성립한다 — 추천하지 않은 건을 성적에 넣으면 안 된다.
+   *
+   * 참고로 실측은 이 직관과 반대다(확정 100건 기준 건당 순손익):
+   *   높음 −4.05% · 보통 −1.74% · 낮음 −0.47%
+   * 확신이 높을수록 나쁘다. 그래도 '확신 없는 방향을 내밀지 않는다'는 원칙 자체는
+   * 유효하므로 기준을 유지하고, 수치는 자기검증 패널에 그대로 노출한다.
+   */
+  function levelOf(a) {
+    if (a.spread != null && a.spread < 10) return 'unclear';
+    return a.pct >= 98 ? 'high' : (a.pct >= 90 ? 'mid' : 'low');
+  }
+  function isRecommended(a) {
+    var lv = levelOf(a);
+    return !!a.side && (lv === 'high' || lv === 'mid');
+  }
+
   function statFor(id) {
     if (!stats) return null;
     return (cfg.minLevel >= 2 ? stats[id + '@L2'] : null) || stats[id] || null;
@@ -336,25 +355,36 @@
         //   추천강도  = 스코어 백분위 (높음 상위2% / 보통 10% / 낮음 그 외)
         //   방향불분명 = 롱·숏 점수차 10 미만 — 모델이 방향 자체를 못 고른 경우
         (a.side ? (function () {
-          var unclear = a.spread != null && a.spread < 10;
-          var lv = unclear ? 'unclear'
-            : (a.pct >= 98 ? 'high' : (a.pct >= 90 ? 'mid' : 'low'));
+          var lv = levelOf(a);
+          var rec = isRecommended(a);
           var txt = { high: '추천강도 높음', mid: '추천강도 보통',
                       low: '추천강도 낮음', unclear: '방향 불분명' }[lv];
           var tip = { high: '스코어 상위 2%', mid: '스코어 상위 10%',
-                      low: '스코어 상위 25% 밖',
+                      low: '스코어 상위 25% 밖 — 확신이 낮아 방향을 제시하지 않습니다',
                       unclear: '롱·숏 점수가 붙어 있어 모델이 방향을 고르지 못했습니다' }[lv];
 
-          // 신호 이후 성적. 방향을 적용한 손익이라 숏은 가격이 내려야 적중이다.
-          // 왕복비용 0.14%를 못 넘으면 방향이 맞아도 실제로는 남는 게 없어 별도 표시한다.
-          var done = a.settled != null;
-          var pnl = done ? a.settled : (chg == null ? null : (a.side === 'SHORT' ? -chg : chg));
-          // 현재가를 아직 못 받았어도 줄 자체는 유지한다 — 빠지면 그 카드만 짧아져
-          // 격자 전체가 들쭉날쭉해진다.
-          var st2 = '<div class="ac-result" data-r="wait">' +
-            '<span class="ac-result-label">진행중</span>' +
-            '<span class="ac-result-word">집계 대기</span></div>';
-          if (pnl != null) {
+          // 추천하지 않는 등급은 방향을 감춘다. 숨긴 방향이 궁금하면 툴팁으로만 본다.
+          var sideHtml = rec
+            ? '<span class="ac-entry-side">' + esc(a.side) + '</span>'
+            : '<span class="ac-entry-none" title="모델이 기운 방향은 ' + esc(a.side) +
+              ' 이지만 확신이 낮아 추천하지 않습니다">추천 없음</span>';
+
+          var pnl = null;
+          if (rec) {
+            pnl = a.settled != null ? a.settled
+              : (chg == null ? null : (a.side === 'SHORT' ? -chg : chg));
+          }
+          var st2 = '';
+          if (!rec) {
+            st2 = '<div class="ac-result" data-r="none">' +
+              '<span class="ac-result-label">관망</span>' +
+              '<span class="ac-result-word">성적 집계 제외</span></div>';
+          } else if (pnl == null) {
+            st2 = '<div class="ac-result" data-r="wait">' +
+              '<span class="ac-result-label">진행중</span>' +
+              '<span class="ac-result-word">집계 대기</span></div>';
+          } else {
+            var done = a.settled != null;
             var cls = pnl > 0 ? 'hit' : 'miss';
             var word = pnl > 0 ? '적중' : '실패';
             var thin = pnl > 0 && pnl < CFG.COST_ROUND_TRIP;
@@ -367,9 +397,9 @@
               '</div>';
           }
 
-          return '<div class="ac-entry" data-side="' + esc(a.side) + '" data-lv="' + lv + '">' +
-            '<span class="ac-entry-label">진입추천</span>' +
-            '<span class="ac-entry-side">' + esc(a.side) + '</span>' +
+          return '<div class="ac-entry" data-side="' + esc(a.side) + '" data-lv="' + lv + '"' +
+            (rec ? '' : ' data-norec="1"') + '>' +
+            '<span class="ac-entry-label">진입추천</span>' + sideHtml +
             '<span class="ac-conf" title="' + esc(tip) + '">' + txt + '</span></div>' + st2;
         })() : '') +
         '</div>';
@@ -450,13 +480,17 @@
     var el = $('alert-tally');
     if (!el) return;
 
-    var done = feed.filter(function (x) { return x.settled != null; });
-    var live = feed.length - done.length;
+    // 추천하지 않은 건은 '추천 성적'에 넣지 않는다.
+    var rec = feed.filter(isRecommended);
+    var done = rec.filter(function (x) { return x.settled != null; });
+    var live = rec.length - done.length;
+    var skipped = feed.length - rec.length;
 
     if (done.length < 3) {
       el.hidden = false;
       el.innerHTML = '<div class="tl-wait">확정된 추천이 ' + done.length +
-        '건입니다. 3건 이상 쌓이면 합산 성적을 표시합니다. (진행 중 ' + live + '건)</div>';
+        '건입니다. 3건 이상 쌓이면 합산 성적을 표시합니다. (진행 중 ' + live +
+        '건 · 확신 부족으로 추천 제외 ' + skipped + '건)</div>';
       return;
     }
 
@@ -473,7 +507,7 @@
         '<span class="tl-title">추천 합산 성적</span>' +
         '<span class="tl-sub">확정 ' + done.length + '건 (' +
           Object.keys(done.reduce(function (a, x) { a[x.symbol] = 1; return a; }, {})).length +
-          '종목) · 최근 ' + span + '시간 · ' +
+          '종목) · 확신 부족 제외 ' + skipped + '건 · 최근 ' + span + '시간 · ' +
           '진입 다음 봉, 청산 4시간 뒤 · 왕복비용 ' + cost + '% 반영</span>' +
       '</div>' +
       '<div class="tl-body">' +
@@ -518,83 +552,122 @@
   var BACKFILL_RULES = { vol_spike: 1, breakout: 1, impulse: 1 };
   var backfilled = false;
 
+  /* 시각별로 처리해야 한다.
+   *
+   * 처음엔 종목별로 돌면서 buildFeatures 만 불렀는데, side·pct·spread·mark 는
+   * scoreUniverse 가 '같은 시각의 다른 종목들과 비교해서' 정하는 값이다.
+   * 그걸 빼먹으니 전부 undefined 가 됐고, 진입추천이 안 뜨는 것은 물론
+   * 성적 계산이 side !== 'SHORT' 로 흘러 전 건이 롱으로 채점되고 있었다.
+   * 스코어링이 횡단면인 이상 재구성도 횡단면이어야 한다. */
   function backfill() {
     var st = window.__fb;
     if (backfilled || !st || !st.booted || !st.universe || !st.universe.length) return;
     backfilled = true;
 
-    var now = Date.now();
-    var made = [];
-    var seen = {};                     // "sym|rule" -> 마지막 발동 시각 (쿨다운)
-
+    // 종목마다 상장 시점이 달라 배열 인덱스가 같은 시각을 가리키지 않는다. 시각으로 찾는다.
+    var idx = {}, syms = [];
     st.universe.forEach(function (sym) {
-      var kl = st.bars[sym];
-      var tick = st.tickers[sym];
-      if (!kl || kl.length < CFG.BARS + 10 || !tick) return;
-      if (+tick.quoteVolume < CFG.MIN_QV_RECO) return;
+      var kl = st.bars[sym], tk = st.tickers[sym];
+      if (!kl || kl.length < CFG.BARS + 10 || !tk) return;
+      if (+tk.quoteVolume < CFG.MIN_QV_RECO) return;
+      var m = {};
+      for (var i = 0; i < kl.length; i++) m[kl[i][0]] = i;
+      idx[sym] = m;
+      syms.push(sym);
+    });
+    if (syms.length < 20) return;
 
-      var meta = st.meta[sym] || {};
-      var start = Math.max(CFG.BARS, kl.length - CFG.BACKFILL_BARS);
+    // 기준 시각축은 가장 봉이 많은 종목에서 가져온다
+    var ref = syms.reduce(function (a, b) {
+      return st.bars[b].length > st.bars[a].length ? b : a;
+    }, syms[0]);
+    var refKl = st.bars[ref];
+    var times = [];
+    for (var j = Math.max(CFG.BARS, refKl.length - CFG.BACKFILL_BARS); j < refKl.length; j += CFG.BACKFILL_STEP) {
+      times.push(refKl[j][0]);
+    }
 
-      for (var i = start; i < kl.length; i += CFG.BACKFILL_STEP) {
-        var bars = kl.slice(i - CFG.BARS + 1, i + 1);
+    var now = Date.now();
+    var made = [], seen = {};
+    var ti = 0;
+
+    // 한 번에 다 돌면 UI가 멈춘다. 시각 단위로 끊어가며 처리한다.
+    function chunk() {
+      var deadline = Date.now() + 40;
+      while (ti < times.length && Date.now() < deadline) {
+        step(times[ti++]);
+      }
+      if (ti < times.length) { setTimeout(chunk, 0); return; }
+      finish();
+    }
+
+    function step(t) {
+      var feats = [];
+      for (var k = 0; k < syms.length; k++) {
+        var sym = syms[k];
+        var i = idx[sym][t];
+        if (i == null || i < CFG.BARS - 1) continue;
+        var bars = st.bars[sym].slice(i - CFG.BARS + 1, i + 1);
         if (bars.length < CFG.BARS) continue;
+        // 과거 시점이라 펀딩·OI 는 넘기지 않는다(그때 값을 모른다)
+        var f = Score.buildFeatures(sym, bars, st.tickers[sym], null, null, st.meta[sym] || {});
+        if (f) { f._i = i; feats.push(f); }
+      }
+      if (feats.length < 20) return;
 
-        // 과거 시점이므로 펀딩·OI는 넘기지 않는다(그 시점 값을 모른다).
-        var f = Score.buildFeatures(sym, bars, tick, null, null, meta);
-        if (!f) continue;
+      Score.scoreUniverse(feats);        // ← 이것이 side·pct·spread·mark 를 채운다
 
-        var barT = kl[i][6];           // 봉 종료 시각 = 그때 알림이 떴을 시각
+      for (var q = 0; q < feats.length; q++) {
+        var f2 = feats[q];
+        var kl = st.bars[f2.symbol];
+        var barT = kl[f2._i][6];
         if (now - barT > EXPIRE_MS) continue;
 
-        var hits = Alerts.evaluate(f).filter(function (h) {
+        var hits = Alerts.evaluate(f2).filter(function (h) {
           return BACKFILL_RULES[h.id] && ruleOn(h.id) && h.level >= cfg.minLevel;
-        });
-        hits = hits.filter(function (h) {
-          var k = sym + '|' + h.id;
-          if (barT - (seen[k] || 0) < COOLDOWN_MS) return false;
-          seen[k] = barT;
+        }).filter(function (h) {
+          var key = f2.symbol + '|' + h.id;
+          if (barT - (seen[key] || 0) < COOLDOWN_MS) return false;
+          seen[key] = barT;
           return true;
         });
         if (!hits.length) continue;
-
         hits.sort(function (a, b) { return b.level - a.level; });
 
-        // 4시간이 지난 신호는 그 시점의 실제 봉으로 성적을 확정한다.
-        // 현재가로 매기면 20시간 전 신호를 지금 가격으로 채점하는 셈이 된다.
-        var entry = +kl[i][4];
+        var entry = +kl[f2._i][4];
         var settled = null;
-        var exitIdx = i + 48;
+        var exitIdx = f2._i + 48;
         if (now - barT >= SETTLE_MS && exitIdx < kl.length && entry > 0) {
           var raw = (+kl[exitIdx][4] / entry - 1) * 100;
-          settled = Math.round((f.side === 'SHORT' ? -raw : raw) * 100) / 100;
+          settled = Math.round((f2.side === 'SHORT' ? -raw : raw) * 100) / 100;
         }
 
         made.push({
-          t: barT, symbol: sym, base: f.base, rules: hits,
+          t: barT, symbol: f2.symbol, base: f2.base, rules: hits,
           level: hits[0].level, dir: hits[0].dir || 0,
-          price: entry, precision: f.pricePrecision,
-          exp_move: f.exp_move, ret_1h: f.ret_1h, side: f.side, mark: f.mark,
-          pct: f.pct, spread: f.spread, settled: settled, bf: 1,
+          price: entry, precision: f2.pricePrecision,
+          exp_move: f2.exp_move, ret_1h: f2.ret_1h, side: f2.side, mark: f2.mark,
+          pct: f2.pct, spread: f2.spread, settled: settled, bf: 1,
         });
       }
-    });
+    }
 
-    if (!made.length) return;
+    function finish() {
+      if (!made.length) return;
+      Object.keys(seen).forEach(function (k) {
+        if (!lastFired[k] || lastFired[k] < seen[k]) lastFired[k] = seen[k];
+      });
+      var have = {};
+      feed.forEach(function (x) { have[x.symbol + '|' + Math.floor(x.t / COOLDOWN_MS)] = 1; });
+      var add = made.filter(function (x) {
+        return !have[x.symbol + '|' + Math.floor(x.t / COOLDOWN_MS)];
+      });
+      feed = feed.concat(add).sort(function (a, b) { return b.t - a.t; }).slice(0, FEED_MAX);
+      saveFeed();
+      render();
+    }
 
-    // 라이브 쪽이 방금 재구성한 것을 다시 울리지 않도록 쿨다운을 이어받는다.
-    Object.keys(seen).forEach(function (k) {
-      if (!lastFired[k] || lastFired[k] < seen[k]) lastFired[k] = seen[k];
-    });
-
-    // 이미 저장돼 있던 기록과 겹치면 재구성본을 버린다(사용자가 실제로 본 쪽을 남긴다).
-    var have = {};
-    feed.forEach(function (x) { have[x.symbol + '|' + Math.floor(x.t / COOLDOWN_MS)] = 1; });
-    var add = made.filter(function (x) { return !have[x.symbol + '|' + Math.floor(x.t / COOLDOWN_MS)]; });
-
-    feed = feed.concat(add).sort(function (a, b) { return b.t - a.t; }).slice(0, FEED_MAX);
-    saveFeed();
-    render();
+    chunk();
   }
 
   /* ------------------------------------------------------------------ 제어 */
