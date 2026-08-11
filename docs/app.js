@@ -484,7 +484,7 @@
   function watchHTML(list) {
     return list.map(function (f) {
       return '<span class="mq-item"><b>' + esc(f.base) + '</b>' +
-        f.mark + ' ' + f.side + ' ' + f.score.toFixed(0) + '</span>';
+        Score.markLabel(f.mark) + ' ' + f.side + ' ' + f.score.toFixed(0) + '</span>';
     }).join('');
   }
 
