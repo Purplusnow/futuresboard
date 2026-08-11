@@ -105,9 +105,16 @@ def fetch_symbol(sym: str, days: list[date], months: list[str], interval: str) -
         if not blob:
             continue
         for r in unzip_csv(blob):
-            # [openTime, o, h, l, c, v, closeTime, quoteVol, trades, ...]
+            # 바이낸스 원본 순서 그대로 유지한다(인덱스가 곧 계약이다).
+            # [0]openTime [1]o [2]h [3]l [4]c [5]vol [6]closeTime [7]quoteVol
+            # [8]trades [9]takerBuyBase [10]takerBuyQuote
+            #
+            # 9·10을 처음엔 버렸는데, 이게 '같은 거래량 중 얼마가 매수 주도였나'다.
+            # 같은 5천만 달러라도 매수가 밀어올린 것과 매도가 던진 것은 다른 사건이다.
             klines.append([int(float(r[0])), r[1], r[2], r[3], r[4], r[5],
-                           int(float(r[6])), r[7], int(float(r[8]))])
+                           int(float(r[6])), r[7], int(float(r[8])),
+                           r[9] if len(r) > 9 else "0",
+                           r[10] if len(r) > 10 else "0"])
 
     if len(klines) < 300:
         return None
