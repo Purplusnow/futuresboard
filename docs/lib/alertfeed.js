@@ -480,11 +480,24 @@
     var el = $('alert-tally');
     if (!el) return;
 
-    // 추천하지 않은 건은 '추천 성적'에 넣지 않는다.
-    var rec = feed.filter(isRecommended);
+    /* 집계 창을 '지금'이 아니라 정시에 고정한다.
+     *
+     * 창의 끝이 접속 시각이면 10시에 연 사람과 14시에 연 사람이 서로 다른 4시간씩을
+     * 포함·제외해 합계가 달라진다(실측 건당 −2.19% ~ −2.75%, 폭 0.6%p).
+     * 정시로 끊으면 같은 시간대에 들어온 사람은 전부 같은 숫자를 본다.
+     * 카드 피드 자체는 실시간으로 흐르되, '공개 성적'은 시간 단위로만 갱신된다. */
+    var HOUR = 3600000;
+    var anchor = Math.floor(Date.now() / HOUR) * HOUR;
+    var winStart = anchor - EXPIRE_MS;
+
+    var rec = feed.filter(function (x) {
+      return isRecommended(x) && x.t >= winStart && x.t <= anchor;
+    });
     var done = rec.filter(function (x) { return x.settled != null; });
     var live = rec.length - done.length;
-    var skipped = feed.length - rec.length;
+    var skipped = feed.filter(function (x) {
+      return x.t >= winStart && x.t <= anchor;
+    }).length - rec.length;
 
     if (done.length < 3) {
       el.hidden = false;
@@ -498,7 +511,7 @@
     var gross = done.reduce(function (a, x) { return a + x.settled; }, 0);
     var net = gross - cost * done.length;
     var hit = done.filter(function (x) { return x.settled - cost > 0; }).length;
-    var span = Math.round((Date.now() - Math.min.apply(null, done.map(function (x) { return x.t; }))) / 3600000);
+    var anchorTxt = new Date(anchor).toTimeString().slice(0, 5);
 
     var sign = net >= 0 ? 'up' : 'down';
     el.hidden = false;
@@ -507,8 +520,8 @@
         '<span class="tl-title">추천 합산 성적</span>' +
         '<span class="tl-sub">확정 ' + done.length + '건 (' +
           Object.keys(done.reduce(function (a, x) { a[x.symbol] = 1; return a; }, {})).length +
-          '종목) · 확신 부족 제외 ' + skipped + '건 · 최근 ' + span + '시간 · ' +
-          '진입 다음 봉, 청산 4시간 뒤 · 왕복비용 ' + cost + '% 반영</span>' +
+          '종목) · 확신 부족 제외 ' + skipped + '건 · ' + anchorTxt +
+          ' 기준 24시간 · 진입 다음 봉, 청산 4시간 뒤 · 왕복비용 ' + cost + '% 반영</span>' +
       '</div>' +
       '<div class="tl-body">' +
         '<div class="tl-main ' + sign + '">' +
