@@ -330,7 +330,11 @@
           // 왕복비용 0.14%를 못 넘으면 방향이 맞아도 실제로는 남는 게 없어 별도 표시한다.
           var done = a.settled != null;
           var pnl = done ? a.settled : (chg == null ? null : (a.side === 'SHORT' ? -chg : chg));
-          var st2 = '';
+          // 현재가를 아직 못 받았어도 줄 자체는 유지한다 — 빠지면 그 카드만 짧아져
+          // 격자 전체가 들쭉날쭉해진다.
+          var st2 = '<div class="ac-result" data-r="wait">' +
+            '<span class="ac-result-label">진행중</span>' +
+            '<span class="ac-result-word">집계 대기</span></div>';
           if (pnl != null) {
             var cls = pnl > 0 ? 'hit' : 'miss';
             var word = pnl > 0 ? '적중' : '실패';

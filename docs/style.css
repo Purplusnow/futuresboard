@@ -437,18 +437,6 @@ body {
 .ab.icon[data-on="0"] { opacity: 0.6; filter: grayscale(1); }
 .alerts-note { font-family: var(--mono); font-size: 12px; color: var(--fg-mute); }
 
-/* 피드 — 가로 스크롤 카드. 세로로 쌓으면 보드를 밀어낸다. */
-.alert-feed {
-  display: flex; gap: 8px;
-  /* 빈 상태(한 줄) → 카드(세 줄) 전환에서 아래 내용이 한 번 밀리는 것을 막는다 */
-  min-height: 74px;
-  align-items: flex-start;
-  overflow-x: auto; overflow-y: hidden;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-}
-.alert-feed::-webkit-scrollbar { height: 6px; }
-.alert-feed::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
 
 .alert-card {
   flex: 0 0 auto;
@@ -603,7 +591,6 @@ html, body { overflow-x: hidden; }
 .ac-entry[data-side="SHORT"] .ac-entry-side {
   color: var(--short); background: rgba(255, 92, 138, 0.16);
 }
-.alert-feed { min-height: 118px; }
 
 /* 진입추천 옆 확신도. 기호 대신 말로 — 범례를 안 봐도 읽힌다. */
 .ac-conf {
@@ -637,16 +624,17 @@ html, body { overflow-x: hidden; }
   background: rgba(255, 255, 255, 0.06); color: var(--fg-mute); white-space: nowrap;
 }
 .alert-card { min-width: 196px; }
-.alert-feed { min-height: 142px; }
 
 /* 피드를 가로 스크롤에서 아래로 흐르는 격자로 바꾼다.
  * 카드가 늘어날수록 가로 스크롤은 뒤쪽 카드를 사실상 안 보이게 만든다. */
 .alert-feed {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  grid-auto-rows: 1fr;        /* 모든 행 높이를 가장 큰 카드에 맞춘다 */
+  align-items: stretch;       /* 카드가 행 높이를 꽉 채우게 — 없으면 제각각이 된다 */
   gap: 8px;
   overflow: visible;          /* 자체 스크롤 없이 전부 아래로 흐르게 둔다 */
-  min-height: 0;
+  min-height: 142px;
 }
 .alert-card { min-width: 0; }
 
@@ -666,3 +654,23 @@ html, body { overflow-x: hidden; }
   white-space: nowrap;
 }
 .ac-rule-item b { color: var(--accent); font-size: 10px; }
+
+/* 카드 높이 통일.
+ * 규칙 칩 줄바꿈·화살표 유무·성적 줄 유무 때문에 카드마다 높이가 달랐다.
+ * 격자 행 높이를 맞추고, 카드를 세로 플렉스로 만들어 성적 줄을 항상 바닥에 붙인다.
+ * 그러면 내용 길이가 달라도 위아래 기준선이 일치한다. */
+
+.alert-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.ac-rule { min-height: 21px; }        /* 칩이 없거나 한 줄이어도 자리를 유지 */
+.ac-px   { min-height: 17px; }
+.ac-meta { min-height: 17px; }
+.ac-result { margin-top: auto; }      /* 항상 카드 맨 아래 */
+
+/* 아직 집계 전 상태 */
+.ac-result[data-r="wait"] .ac-result-word {
+  color: var(--fg-mute); background: rgba(255, 255, 255, 0.06); font-weight: 500;
+}
