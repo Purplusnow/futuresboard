@@ -7,11 +7,11 @@
   --bg-2: #0c1017;
   --panel: #10151f;
   --line: #1c2434;
-  --line-2: #263048;
+  --line-2: #39486d;
 
   --fg: #e8edf7;
   --fg-dim: #8c97ad;
-  --fg-mute: #5b6478;
+  --fg-mute: #758099;
 
   --up: #22d3a6;
   --down: #ff4d6d;
@@ -228,13 +228,10 @@ body {
   font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
   padding: 2px 6px; border-radius: 4px;
 }
-.side-pill {
-  opacity: 0.55;
-  font-weight: 500;
-}
-.side-pill[data-side="LONG"] { color: var(--long); background: rgba(34, 211, 166, 0.08); }
-.side-pill[data-side="SHORT"] { color: var(--short); background: rgba(255, 92, 138, 0.08); }
-.row:hover .side-pill { opacity: 0.9; }
+.side-pill { font-weight: 500; }
+.side-pill[data-side="LONG"] { color: var(--long); background: rgba(34, 211, 166, 0.14); }
+.side-pill[data-side="SHORT"] { color: var(--short); background: rgba(255, 92, 138, 0.14); }
+
 
 .c-price, .c-move, .c-chg, .c-fund { text-align: right; font-family: var(--mono); font-size: 14.5px; }
 
@@ -360,11 +357,11 @@ body {
   color: var(--fg-mute); font-weight: 500; font-size: 12px;
   letter-spacing: 0.06em; border-bottom: 1px solid var(--line);
 }
-.track-table thead th.sub { font-size: 11px; color: var(--fg-mute); opacity: 0.75; }
+.track-table thead th.sub { font-size: 11px; color: var(--fg-mute); }
 .track-table td { border-bottom: 1px solid var(--line); color: var(--fg-dim); }
 .track-table td.lbl, .track-table th:first-child { text-align: left; color: var(--fg); }
 .track-table td.n { color: var(--fg-mute); }
-.track-table td.dim { opacity: 0.62; }
+.track-table td.dim { color: var(--fg-mute); }
 .track-table td.up { color: var(--up); }
 .track-table td.down { color: var(--down); }
 .track-table tr[data-kind="all"] td { border-top: 1px solid var(--line-2); color: var(--fg); }
@@ -395,7 +392,7 @@ body {
 .track-live b { color: var(--fg-dim); }
 .track-live b.up { color: var(--up); }
 .track-live b.down { color: var(--down); }
-.track-live .dimmed { opacity: 0.72; }
+.track-live .dimmed { color: var(--fg-mute); }
 .track-verdict[data-kind="partial"] { border-left: 3px solid var(--accent); }
 .track-verdict b.ok { color: var(--accent); }
 .track-verdict b.no { color: var(--fg-dim); }
@@ -422,7 +419,7 @@ body {
 .ab:hover { color: var(--fg); border-color: var(--fg-mute); }
 .ab[data-on="1"] { background: var(--up); border-color: var(--up); color: #07090d; font-weight: 700; }
 .ab.icon { padding: 5px 9px; }
-.ab.icon[data-on="0"] { opacity: 0.4; filter: grayscale(1); }
+.ab.icon[data-on="0"] { opacity: 0.6; filter: grayscale(1); }
 .alerts-note { font-family: var(--mono); font-size: 12px; color: var(--fg-mute); }
 
 /* 피드 — 가로 스크롤 카드. 세로로 쌓으면 보드를 밀어낸다. */
@@ -476,7 +473,7 @@ body {
 .rule-table td.rt-desc { color: var(--fg-mute); font-family: inherit; font-size: 12px; }
 .rule-table td.rt-n { white-space: nowrap; }
 .rule-table td.rt-hot { color: var(--accent); font-weight: 600; }
-.rule-table .rt-ns { color: var(--fg-mute); opacity: 0.7; }
+.rule-table .rt-ns { color: var(--fg-mute); }
 
 @media (max-width: 760px) {
   .alerts { padding: 14px 12px 0; }
@@ -486,7 +483,7 @@ body {
 }
 .rule-intro { margin: 8px 0; font-size: 12.5px; line-height: 1.75; color: var(--fg-mute); }
 .rule-intro b { color: var(--fg-dim); }
-.rule-table tr.rt-off td { opacity: 0.45; }
+.rule-table tr.rt-off td { color: var(--fg-mute); }
 .rule-table td.rt-verdict { white-space: nowrap; color: var(--fg-mute); }
 .rule-table td.rt-hot + td.rt-verdict { color: var(--accent); }
 
@@ -541,7 +538,7 @@ html, body { overflow-x: hidden; }
 .lg-table td.lg-strong { font-weight: 700; font-size: 14px; }
 .lg-table td.up { color: var(--up); }
 .lg-table td.down { color: var(--down); }
-.lg-table td.dim { opacity: 0.6; }
+.lg-table td.dim { color: var(--fg-mute); }
 
 @media (max-width: 760px) { .ledger { padding: 0 12px; } }
 
