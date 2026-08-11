@@ -41,7 +41,7 @@ const MAX_H = Math.max(...HOLDS.map((h) => h[1]));
 const STRATS = [
   { id: 'model_dir', label: '모델 방향', pick: (F) => board(F).map((f) => ({ f, side: f.side })) },
   { id: 'model_fade', label: '모델 반대', pick: (F) => board(F).map((f) => ({ f, side: f.side === 'LONG' ? 'SHORT' : 'LONG' })) },
-  { id: 'mark_top', label: '◎ 등급만', pick: (F) => board(F).filter((f) => f.mark === '◎').map((f) => ({ f, side: f.side })) },
+  { id: 'mark_top', label: '추천강도 높음만', pick: (F) => board(F).filter((f) => f.mark === '◎').map((f) => ({ f, side: f.side })) },
   { id: 'control', label: '대조군(전부 롱)', pick: (F) => eligible(F).map((f) => ({ f, side: 'LONG' })) },
 ];
 const eligible = (F) => F.filter((f) => f.qv24 >= CFG.MIN_QV_RECO);
@@ -233,7 +233,7 @@ for (const st of STRATS) {
 // 방향 일치 기준선 대비 초과 — 시장 방향과 방향 편향을 모두 제거한 값.
 // '전부 롱' 대조군만 쓰면 숏 편향 전략이 하락장에서 실력처럼 보인다.
 console.log('── 방향 일치 기준선 대비 초과 (시장 방향 + 방향 편향 제거)');
-console.log('   보유        모델 방향 (t)        모델 반대 (t)        ◎ 등급만 (t)      전·후반 일치');
+console.log('   보유        모델 방향 (t)        모델 반대 (t)        강도높음 (t)      전·후반 일치');
 for (const [hk, hold] of HOLDS) {
   let row = `   ${hk.padEnd(6)}`;
   const flags = [];
@@ -241,7 +241,7 @@ for (const [hk, hold] of HOLDS) {
     const s = stat(R[id][hk], hold);
     const e = s && s.ex;
     row += e ? `${pc(e.mean)} (${e.t.toFixed(1).padStart(5)})   ` : '        —          ';
-    if (e) flags.push(`${id === 'model_dir' ? '방향' : id === 'model_fade' ? '반대' : '◎'}:` +
+    if (e) flags.push(`${id === 'model_dir' ? '방향' : id === 'model_fade' ? '반대' : '강도높음'}:` +
       (e.h1 > 0 && e.h2 > 0 ? '++' : e.h1 < 0 && e.h2 < 0 ? '--' : '±'));
   }
   console.log(row + '  ' + flags.join(' '));

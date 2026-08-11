@@ -441,8 +441,9 @@
     }
 
     var markEl = el.querySelector('.mark');
-    markEl.dataset.m = f.mark;
-    markEl.textContent = f.mark;
+    markEl.dataset.m = f.mark;          // 스타일용 내부 키
+    markEl.textContent = Score.markLabel(f.mark);
+    markEl.title = Score.MARK_DESC[f.mark] || '';
 
     var tags = el.querySelector('.tags');
     var html = '';

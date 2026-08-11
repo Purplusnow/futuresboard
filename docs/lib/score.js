@@ -5,7 +5,9 @@
  *     시장 전체가 오르면 모두 만점을 받는 왜곡을 막기 위해서다.
  *  2) 점수만 보여주면 신뢰가 안 생긴다. '이 종목이 유니버스 대비 가장 앞선 지표'를
  *     골라 실제 수치와 함께 근거 태그로 붙인다.
- *  3) 확신도는 숫자가 아니라 기호(◎○△※)로 낸다.
+ *  3) 확신도는 숫자가 아니라 등급으로 낸다. 화면에는 '높음/보통/낮음/관망'으로
+ *     표시하고, 내부 키는 track.json·ledger.json에 이미 쌓인 기록과 맞추기 위해
+ *     기존 값을 유지한다. 표시와 저장을 분리해 과거 기록이 깨지지 않게 한 것이다.
  *
  * 선물에서 새로 들어온 것
  *  - 양방향: 롱/숏 점수를 각각 계산하고 높은 쪽을 방향으로 채택한다.
@@ -276,7 +278,21 @@
 
   function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }
 
+  // 내부 등급 키 → 화면 표시 라벨.
+  // 키를 직접 바꾸면 track.json/ledger.json에 누적된 검증 기록의 키와 어긋난다.
+  var MARK_LABEL = { '◎': '높음', '○': '보통', '△': '낮음', '※': '관망' };
+  var MARK_DESC = {
+    '◎': '스코어 상위 2%',
+    '○': '상위 10%',
+    '△': '상위 25%',
+    '※': '롱·숏 점수차 10 미만 — 모델이 방향을 못 고름',
+  };
+  function markLabel(m) { return MARK_LABEL[m] || m || ''; }
+
   global.Score = {
+    MARK_LABEL: MARK_LABEL,
+    MARK_DESC: MARK_DESC,
+    markLabel: markLabel,
     WEIGHTS: WEIGHTS,
     buildFeatures: buildFeatures,
     scoreUniverse: scoreUniverse,

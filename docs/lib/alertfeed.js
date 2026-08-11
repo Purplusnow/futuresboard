@@ -30,6 +30,7 @@
 
   var cfg = loadCfg();
   var feed = loadFeed();
+  saveFeed();                       // 접힌 결과를 바로 반영
   var lastFired = {};                  // "sym|rule" -> ts
   var notifTimes = [];
   var unseen = 0;
@@ -53,7 +54,42 @@
     try { localStorage.setItem(KEY_CFG, JSON.stringify(cfg)); } catch (e) {}
   }
   function loadFeed() {
-    try { return JSON.parse(localStorage.getItem(KEY_FEED)) || []; } catch (e) { return []; }
+    var raw;
+    try { raw = JSON.parse(localStorage.getItem(KEY_FEED)) || []; } catch (e) { return []; }
+    return migrate(raw);
+  }
+
+  /* 기존 저장분 정리.
+   *
+   * 종목당 한 장으로 묶는 규칙은 '새로 생기는 카드'에만 적용된다. 이미 브라우저에
+   * 쌓여 있던 기록은 규칙마다 한 장씩이라 같은 종목이 여러 개 남아 있다.
+   * 저장분도 같은 규칙으로 접어야 화면이 실제로 정리된다.
+   *
+   * 시간이 멀리 떨어진 것까지 합치면 서로 다른 사건이 한 장이 되므로,
+   * 확정 주기(4시간) 안에 있는 것만 같은 사건으로 본다. */
+  function migrate(raw) {
+    var byKey = {};
+    var out = [];
+
+    raw.slice().sort(function (a, b) { return a.t - b.t; }).forEach(function (r) {
+      // 옛 형식(rule/label 단수)을 rules 배열로 정규화
+      if (!r.rules) {
+        r.rules = r.rule ? [{ id: r.rule, label: r.label, level: r.level, dir: r.dir || 0 }] : [];
+      }
+      var prev = byKey[r.symbol];
+      if (prev && r.t - prev.t < SETTLE_MS && prev.settled == null) {
+        var known = {};
+        prev.rules.forEach(function (x) { known[x.id] = 1; });
+        r.rules.forEach(function (x) { if (!known[x.id]) { prev.rules.push(x); known[x.id] = 1; } });
+        prev.level = Math.max(prev.level || 1, r.level || 1);
+        return;                        // 흡수됐으므로 별도 카드로 남기지 않는다
+      }
+      byKey[r.symbol] = r;
+      out.push(r);
+    });
+
+    out.sort(function (a, b) { return b.t - a.t; });   // 최신이 위
+    return out;
   }
   function saveFeed() {
     try { localStorage.setItem(KEY_FEED, JSON.stringify(feed.slice(0, FEED_MAX))); } catch (e) {}

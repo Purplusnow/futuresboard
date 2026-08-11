@@ -44,7 +44,7 @@
     if (mv && mv.significant) {
       html += '<b class="ok">검증된 것 — 변동폭 추정.</b> 화면의 「예상 변동 4H」는 59일 실측으로 ' +
         '보정된 값입니다(순위상관 ρ=0.62, 등급별 실측/예상 0.99~1.02배). ' +
-        '최고 등급(◎)은 같은 조건 평균보다 <b>' + mv.ratio.toFixed(2) + '배</b> 크게 움직였고 ' +
+        '최고 등급(높음)은 같은 조건 평균보다 <b>' + mv.ratio.toFixed(2) + '배</b> 크게 움직였고 ' +
         '(t=' + mv.t.toFixed(1) + '), 「방향 불분명(※)」 등급은 정확히 평균 수준입니다.';
     }
     // 스코어 순위가 자명한 기준선(ATR 단순정렬)을 못 이긴다는 사실을 먼저 적는다.
@@ -58,13 +58,13 @@
     }
     if (t.verdict !== 'edge') {
       html += '<br><b class="no">검증되지 않은 것 — 방향.</b> ' +
-        (rb ? '◎ 등급 4시간 평균 수익은 ' + signed(rb.mean) + ' (t=' + rb.t.toFixed(2) +
+        (rb ? '추천강도 높음 등급의 4시간 평균 수익은 ' + signed(rb.mean) + ' (t=' + rb.t.toFixed(2) +
           ', 유의 기준 |t|≥2), 일별로는 ' + rb.days_total + '일 중 ' + rb.days_positive + '일만 양(+). '
           : '') +
         '<b>롱·숏 방향이 맞는다는 근거는 없습니다.</b> 이 화면은 “무엇이 곧 크게 움직일지”를 ' +
         '고르는 스캐너이지, 어느 쪽으로 갈지를 맞히는 예측기가 아닙니다.';
     } else if (rb) {
-      html += '<br><b class="ok">방향 초과성과도 확인됩니다.</b> ◎ 등급 4시간 평균 ' +
+      html += '<br><b class="ok">방향 초과성과도 확인됩니다.</b> 추천강도 높음 등급 4시간 평균 ' +
         signed(rb.mean) + ' (t=' + rb.t.toFixed(2) + ').';
     }
     v.dataset.kind = (mv && mv.significant) ? 'partial' : 'none';
@@ -73,7 +73,7 @@
     // 등급별 표 — 초과분(baseline 대비)을 주 지표로 둔다
     var rows = [];
     ['◎', '○', '△', '※'].forEach(function (m) {
-      if (t.by_mark[m]) rows.push([m, t.by_mark[m], 'mark']);
+      if (t.by_mark[m]) rows.push([window.Score ? Score.markLabel(m) : m, t.by_mark[m], 'mark']);
     });
     rows.push(['LONG', t.by_side.LONG, 'side']);
     rows.push(['SHORT', t.by_side.SHORT, 'side']);

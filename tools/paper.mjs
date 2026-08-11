@@ -70,7 +70,7 @@ const STRATEGIES = [
   },
   {
     id: 'mark_top',
-    label: '◎ 등급만',
+    label: '추천강도 높음만',
     note: '가장 확신이 높다고 표시한 것만 — 등급이 의미가 있는지 확인',
     pick: (feats) => board(feats).filter((f) => f.mark === '◎').map((f) => ({ f, side: f.side })),
   },
