@@ -7114,8 +7114,59 @@
      "win_rate": 0
     }
    }
+  },
+  "2026-11-18": {
+   "model_sha": "25e7ed1",
+   "mode": "forward",
+   "strat": {
+    "model_dir": {
+     "n": 280,
+     "gross": 86.2223,
+     "net": 47.0223,
+     "wins": 124,
+     "avg_gross": 0.3079,
+     "avg_net": 0.1679,
+     "win_rate": 0.4429
+    },
+    "model_fade": {
+     "n": 280,
+     "gross": -86.2223,
+     "net": -125.4223,
+     "wins": 128,
+     "avg_gross": -0.3079,
+     "avg_net": -0.4479,
+     "win_rate": 0.4571
+    },
+    "mark_top": {
+     "n": 31,
+     "gross": 40.8691,
+     "net": 36.5291,
+     "wins": 11,
+     "avg_gross": 1.3184,
+     "avg_net": 1.1784,
+     "win_rate": 0.3548
+    },
+    "control_random": {
+     "n": 827,
+     "gross": -87.8095,
+     "net": -203.5895,
+     "wins": 227,
+     "avg_gross": -0.1062,
+     "avg_net": -0.2462,
+     "win_rate": 0.2745
+    },
+    "alert_event": {
+     "n": 5,
+     "gross": 4.925,
+     "net": 4.225,
+     "wins": 4,
+     "avg_gross": 0.985,
+     "avg_net": 0.845,
+     "win_rate": 0.8
+    }
+   }
   }
  },
- "updated_at": "2026-11-18T11:58:58Z",
+ "updated_at": "2026-11-19T11:55:52Z",
  "freeze_date": "2026-08-11"
 }
